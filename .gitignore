@@ -1,0 +1,5 @@
+.settings
+*.o
+*.elf
+*.hex
+*.map
