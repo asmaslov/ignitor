@@ -151,7 +151,7 @@ ISR(USART1_TX_vect) {
  * Public functions                                                         *
  ****************************************************************************/
 
-bool usart_init(Usart *usart, UsartIndex index, uint32_t baudrate) {
+bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
     if (!usart) {
         return false;
     }

@@ -10,10 +10,13 @@ $(info ************* LINUX VERSION *************)
 RM=rm
 endif
 
-CFLAGS = -mmcu=${MCU} -DF_CPU=${F_CPU}UL -g -Os -Wall -I. -I./drv -ffunction-sections
+TRACE_LEVEL=TRACE_LEVEL_DEBUG
+
+CFLAGS = -mmcu=${MCU} -DF_CPU=${F_CPU}UL -DTRACE_LEVEL=${TRACE_LEVEL} -g -Os -Wall -I. -I./drv -ffunction-sections
 LDFLAGS = -Wl,--gc-sections -Wl,-Map,${PRJ}.map
 
 SRCS_C = main.c \
+	meter.c \
 	trace.c \
 	drv/usart.c \
 	drv/timer.c \

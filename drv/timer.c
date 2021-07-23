@@ -61,6 +61,50 @@ Timer *timer2;
  * Private functions                                                        *
  ****************************************************************************/
 
+bool calc(const TimerIndex index, const uint32_t freq, const uint32_t *prescale, const uint8_t dm, uint8_t *dv, const uint32_t max, uint32_t *ocr, uint32_t *freqReal) {
+    *dv = 1;
+    do {
+        *ocr = F_CPU / (2 * freq * prescale[*dv++]) - 1;
+        if (*ocr == 0) {
+            break;
+        }
+    }
+    while ((*ocr > max) && (*dv < dm));
+    if ((*ocr > max) && (*dv == dm)) {
+        TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
+        return false;
+    }
+    *dv = *dv - 1;
+    TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
+    TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, *ocr);
+    freqReal = F_CPU / (2 * prescale[*dv] * (1 + *ocr));
+    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, freqReal);
+    return true;
+}
+
+bool calc2(const TimerIndex index, const uint32_t freq, const uint32_t *prescale, const uint8_t dm, uint8_t *dv, const uint32_t max, uint32_t *freqReal) {
+    uint32_t tmp;
+
+    *dv = 1;
+    do {
+        tmp = F_CPU / (2 * freq * prescale[*dv++]) - 1;
+        if (tmp == 0) {
+            break;
+        }
+    }
+    while ((tmp > max) && (*dv < dm));
+    if ((tmp > max) && (*dv == dm)) {
+        TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
+        return false;
+    }
+    *dv = *dv - 1;
+    TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
+    TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, max);
+    freqReal = F_CPU / (2 * prescale[*dv] * (1 + max));
+    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, freqReal);
+    return true;
+}
+
 /****************************************************************************
  * Interrupt handler functions                                              *
  ****************************************************************************/
@@ -83,6 +127,15 @@ ISR(TIMER1_COMPA_vect) {
         }
     }
 }
+
+ISR(TIMER1_CAPT_vect) {
+    uint32_t timeoutUs = 1000000UL * ICR1 / timer1->freqReal;
+    if (timer1) {
+        if (timer1->resultHandler) {
+            timer1->resultHandler(timeoutUs);
+        }
+    }
+}
 #endif
 
 #ifdef TCCR2A
@@ -100,9 +153,8 @@ ISR(TIMER2_COMPA_vect) {
  ****************************************************************************/
 
 bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHandler handler, TimerOutput out) {
-    uint8_t dv, wgm, dm;
-    uint32_t ocr, max;
-    const uint32_t *prescale;
+    uint8_t wgm;
+    uint32_t ocr;
 
     if (!timer || (freq > (F_CPU / 2))) {
         return false;
@@ -113,60 +165,12 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
     switch (index) {
         #ifdef TCCR0A
         case TIMER_0:
-            max = UINT8_MAX;
-            prescale = prescale01;
-            dm = dv01;
+            if (!calc(timer->index, freq, prescale01, dv01, &timer->cs, UINT8_MAX, &ocr, &timer->freqReal)){
+                return false;
+            }
             TCCR0A = 0;
             TCCR0B = 0;
             TIMSK0 = 0;
-            timer0 = timer;
-            break;
-        #endif
-        #ifdef TCCR1A
-        case TIMER_1:
-            max = UINT16_MAX;
-            prescale = prescale01;
-            dm = dv01;
-            TCCR1A = 0;
-            TCCR1B = 0;
-            TCCR1C = 0;
-            TIMSK1 = 0;
-            timer1 = timer;
-            break;
-        #endif
-        #ifdef TCCR2A
-        case TIMER_2:
-            max = UINT8_MAX;
-            prescale = prescale2;
-            dm = dv2;
-            TCCR2A = 0;
-            TCCR2B = 0;
-            TIMSK2 = 0;
-            timer2 = timer;
-            break;
-        #endif
-        default:
-            return false;
-    }
-    dv = 1;
-    do {
-        ocr = F_CPU / (2 * freq * prescale[dv++]) - 1;
-        if (ocr == 0) {
-            break;
-        }
-    }
-    while ((ocr > max) && (dv < dm));
-    if ((ocr > max) && (dv == dm)) {
-        TRACE_ERROR("Timer %d frequency too low\n\r", timer);
-        return false;
-    }
-    dv--;
-    TRACE_DEBUG("Timer %d divider set %lu\n\r", timer, prescale[dv]);
-    TRACE_DEBUG("Timer %d top set %lu\n\r", timer, ocr);
-    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", timer, (F_CPU / (2 * prescale[dv] * (1 + ocr))));
-    switch (index) {
-        #ifdef TCCR0A
-        case TIMER_0:
             TCNT0 = 0;
             if (ocr == 0) {
                 wgm = TIMER02_WGM_NORMAL;
@@ -182,11 +186,18 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
                     | (((out >> 0) & 1) << COM0B0) | (((wgm >> 1) & 1) << WGM01)
                     | (((wgm >> 0) & 1) << WGM00);
             TCCR0B = (0 << FOC0A) | (0 << FOC0B) | (((wgm >> 2) & 1) << WGM02);
-            timer->cs = dv;
+            timer0 = timer;
             break;
         #endif
         #ifdef TCCR1A
         case TIMER_1:
+            if (!calc(timer->index, freq, prescale01, dv01, &timer->cs, UINT16_MAX, &ocr, &timer->freqReal)){
+                return false;
+            }
+            TCCR1A = 0;
+            TCCR1B = 0;
+            TCCR1C = 0;
+            TIMSK1 = 0;
             TCNT1 = 0;
             if (ocr == 0) {
                 wgm = TIMER1_WGM_NORMAL;
@@ -204,11 +215,17 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
             TCCR1B = (0 << ICNC1) | (0 << ICES1) | (((wgm >> 3) & 1) << WGM13)
                     | (((wgm >> 2) & 1) << WGM12);
             TCCR1C = (0 << FOC1A) | (0 << FOC1B);
-            timer->cs = dv;
+            timer1 = timer;
             break;
         #endif
         #ifdef TCCR2A
         case TIMER_2:
+            if (!calc(timer->index, freq, prescale2, dv2, &timer->cs, UINT8_MAX, &ocr, &timer->freqReal)){
+                return false;
+            }
+            TCCR2A = 0;
+            TCCR2B = 0;
+            TIMSK2 = 0;
             TCNT2 = 0;
             if (ocr == 0) {
                 wgm = TIMER02_WGM_NORMAL;
@@ -224,7 +241,7 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
                     | (((out >> 0) & 1) << COM2B0) | (((wgm >> 1) & 1) << WGM21)
                     | (((wgm >> 0) & 1) << WGM20);
             TCCR2B = (0 << FOC2A) | (0 << FOC2B) | (((wgm >> 2) & 1) << WGM22);
-            timer->cs = dv;
+            timer2 = timer;
             break;
         #endif
         default:
@@ -233,22 +250,51 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
     return true;
 }
 
-void timer_configPwm(Timer *timer, TimerIndex index, uint32_t freq, TimerPwmMode mode) {
-    if (timer) {
-        //TODO: configurePwm
+bool timer_configPwm(Timer *timer, TimerIndex index, uint32_t freq, TimerPwmMode mode) {
+    if (!timer || (freq > (F_CPU / 2))) {
+        return false;
     }
+    //TODO: configPwm
+    return false;
 }
 
-void timer_configCounter(Timer *timer, TimerIndex index, TimerResultHandler resultHandler) {
-    if (timer) {
-    //TODO: configureCounter
+bool timer_configCounter(Timer *timer, TimerIndex index, TimerResultHandler resultHandler) {
+    if (!timer) {
+        return false;
     }
+    //TODO: configCounter
+    return false;
 }
 
-void timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResultHandler resultHandler) {
-    if (timer) {
-        //TODO: configureMeter
+bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResultHandler resultHandler) {
+    if (!timer || (freq > (F_CPU / 2))) {
+        return false;
     }
+    memset(timer, 0, sizeof(Timer));
+    timer->index = index;
+    timer->resultHandler = resultHandler;
+    switch (index) {
+        #ifdef TCCR1A
+        case TIMER_1:
+            if (!calc2(timer->index, freq, prescale01, dv01, &timer->cs, UINT16_MAX, &timer->freqReal)){
+                return false;
+            }
+            TCCR1A = 0;
+            TCCR1B = 0;
+            TCCR1C = 0;
+            TIMSK1 = (1 << ICIE1);
+            TCNT1 = 0;
+            TCCR1B = (1 << ICNC1) | (0 << ICES1);
+            timer1 = timer;
+            break;
+        #endif
+        default:
+            return false;
+    }
+
+
+    //TODO: configMeter
+    return false;
 }
 
 void timer_run(Timer *timer) {

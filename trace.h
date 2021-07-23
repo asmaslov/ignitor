@@ -43,40 +43,40 @@ extern FlushFunc flush;
 #define TRACE_FATAL_WP(...)   { while(1); }
 #else
 #if (TRACE_LEVEL >= TRACE_LEVEL_DEBUG)
-#define TRACE_DEBUG(...)      { fprintf(&trace, "-D- " __VA_ARGS__); fprintf("\r\n"); flush(); }
-#define TRACE_DEBUG_WP(...)   { fprintf(&trace, __VA_ARGS__); fprintf("\r\n"); flush(); }
+#define TRACE_DEBUG(...)      { fprintf(&trace, "-D- " __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
+#define TRACE_DEBUG_WP(...)   { fprintf(&trace, __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
 #else
 #define TRACE_DEBUG(...)      { }
 #define TRACE_DEBUG_WP(...)   { }
 #endif
 
 #if (TRACE_LEVEL >= TRACE_LEVEL_INFO)
-#define TRACE_INFO(...)       { fprintf(&trace, "-I- " __VA_ARGS__); fprintf("\r\n"); flush(); }
-#define TRACE_INFO_WP(...)    { fprintf(&trace, __VA_ARGS__); fprintf("\r\n"); flush(); }
+#define TRACE_INFO(...)       { fprintf(&trace, "-I- " __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
+#define TRACE_INFO_WP(...)    { fprintf(&trace, __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
 #else
 #define TRACE_INFO(...)       { }
 #define TRACE_INFO_WP(...)    { }
 #endif
 
 #if (TRACE_LEVEL >= TRACE_LEVEL_WARNING)
-#define TRACE_WARNING(...)    { fprintf(&trace, "-W- " __VA_ARGS__); fprintf("\r\n"); flush() }
-#define TRACE_WARNING_WP(...) { fprintf(&trace, __VA_ARGS__); fprintf("\r\n"); flush(); }
+#define TRACE_WARNING(...)    { fprintf(&trace, "-W- " __VA_ARGS__); fprintf(&trace, "\r\n"); flush() }
+#define TRACE_WARNING_WP(...) { fprintf(&trace, __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
 #else
 #define TRACE_WARNING(...)    { }
 #define TRACE_WARNING_WP(...) { }
 #endif
 
 #if (TRACE_LEVEL >= TRACE_LEVEL_ERROR)
-#define TRACE_ERROR(...)      { fprintf(&trace, "-E- " __VA_ARGS__); fprintf("\r\n"); flush(); }
-#define TRACE_ERROR_WP(...)   { fprintf(&trace, __VA_ARGS__); fprintf("\r\n"); flush(); }
+#define TRACE_ERROR(...)      { fprintf(&trace, "-E- " __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
+#define TRACE_ERROR_WP(...)   { fprintf(&trace, __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); }
 #else
 #define TRACE_ERROR(...)      { }
 #define TRACE_ERROR_WP(...)   { }
 #endif
 
 #if (TRACE_LEVEL >= TRACE_LEVEL_FATAL)
-#define TRACE_FATAL(...)      { fprintf(&trace, "-F- " __VA_ARGS__); fprintf("\r\n"); flush(); while(1); }
-#define TRACE_FATAL_WP(...)   { fprintf(&trace, __VA_ARGS__); fprintf("\r\n"); flush(); while(1); }
+#define TRACE_FATAL(...)      { fprintf(&trace, "-F- " __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); while(1); }
+#define TRACE_FATAL_WP(...)   { fprintf(&trace, __VA_ARGS__); fprintf(&trace, "\r\n"); flush(); while(1); }
 #else
 #define TRACE_FATAL(...)      { while(1); }
 #define TRACE_FATAL_WP(...)   { while(1); }
@@ -102,7 +102,7 @@ extern FlushFunc flush;
 	if(!(condition)) \
 	{ \
 		fprintf(&trace, "-F- ASSERT: " __VA_ARGS__); \
-		fprintf("\r\n"); \
+		fprintf(&trace, "\r\n"); \
 		flush(); \
 		while(1); \
 	} \

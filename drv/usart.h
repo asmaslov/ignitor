@@ -24,7 +24,7 @@ typedef struct {
     volatile bool txBufferLocked, txBufferEmpty;
 } Usart;
 
-bool usart_init(Usart *usart, UsartIndex index, uint32_t baudrate);
+bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate);
 void usart_putchar(Usart *usart, const uint8_t data);
 void usart_putstr(Usart *usart, const char *str);
 const uint8_t usart_getchar(Usart *usart);
