@@ -2,11 +2,11 @@
 #define CONFIG_H_
 
 #ifndef F_CPU
-    #define F_CPU  12070000
+    #define F_CPU  20000000
 #endif
 
-#define DEBUG_BAUDRATE        115200
+#define DEBUG_BAUDRATE    115200
 
-#define MASTER_CLOCK_FREQ_HZ  100
+#define WD_RESET_FREQ_HZ  128
 
 #endif /* CONFIG_H_ */

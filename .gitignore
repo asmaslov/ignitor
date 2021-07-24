@@ -1,5 +1,7 @@
 .settings
 *.o
 *.elf
+*.bin
 *.hex
 *.map
+*.s#*

@@ -7,7 +7,7 @@
  ****************************************************************************/
 
 MeterSparkHandler h;
-const Timer timer1;
+Timer timer1;
 
 /****************************************************************************
  * Public types/enumerations/variables                                      *
@@ -27,7 +27,7 @@ void ready(uint32_t timeoutUs) {
 
 void meter_init(MeterSparkHandler handler) {
     if (handler) {
-        timer_configMeter((Timer *)&timer1, TIMER_1, METER_FREQUENCY_MAX_HZ, ready);
+        timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_MAX_HZ, ready);
         h = handler;
     }
 }

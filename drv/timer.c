@@ -77,8 +77,8 @@ bool calc(const TimerIndex index, const uint32_t freq, const uint32_t *prescale,
     *dv = *dv - 1;
     TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
     TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, *ocr);
-    freqReal = F_CPU / (2 * prescale[*dv] * (1 + *ocr));
-    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, freqReal);
+    *freqReal = F_CPU / (2 * prescale[*dv] * (1 + *ocr));
+    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
     return true;
 }
 
@@ -100,8 +100,8 @@ bool calc2(const TimerIndex index, const uint32_t freq, const uint32_t *prescale
     *dv = *dv - 1;
     TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
     TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, max);
-    freqReal = F_CPU / (2 * prescale[*dv] * (1 + max));
-    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, freqReal);
+    *freqReal = F_CPU / (2 * prescale[*dv] * (1 + max));
+    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
     return true;
 }
 
