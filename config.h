@@ -5,7 +5,7 @@
     #define F_CPU  20000000
 #endif
 
-#define DEBUG_BAUDRATE    115200
+#define DEBUG_BAUDRATE    9600
 
 #define WD_RESET_FREQ_HZ  128
 

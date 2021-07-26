@@ -4,9 +4,6 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include <limits.h>
-#include <string.h>
-
-#include "trace.h"
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
@@ -43,11 +40,11 @@ static inline bool dataRegisterEmpty(UsartIndex index) {
     switch (index) {
         #ifdef UCSR0A
         case USART_0:
-            return (UCSR0A & (1 << UDRE0));
+            return DATA_REGISTER_EMPTY_0;
         #endif
         #ifdef UCSR1A
         case USART_1:
-            return (UCSR1A & (1 << UDRE1));
+            return DATA_REGISTER_EMPTY_1;
             break;
         #endif
         default:
@@ -155,9 +152,17 @@ bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
     if (!usart) {
         return false;
     }
-    memset(usart, 0, sizeof(Usart));
     usart->index = index;
+    usart->rxBufferIndexRead = 0;
+    usart->rxBufferIndexWrite = 0;
+    usart->rxBufferCount = 0;
+    usart->rxBufferLocked = false;
     usart->rxBufferEmpty = true;
+    usart->rxBufferOverflow = false;
+    usart->txBufferIndexRead = 0;
+    usart->txBufferIndexWrite = 0;
+    usart->txBufferCount = 0;
+    usart->txBufferLocked = false;
     usart->txBufferEmpty = true;
     switch (index) {
         #ifdef UCSR0A

@@ -4,8 +4,6 @@
 #include <avr/interrupt.h>
 #include <stdbool.h>
 
-#include "trace.h"
-
 /****************************************************************************
  * Private types/enumerations/variables                                     *
  ****************************************************************************/

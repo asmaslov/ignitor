@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="7.2.0">
+<eagle version="7.6.0">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="2" name="Route2" color="1" fill="3" visible="no" active="no"/>
@@ -17940,11 +17940,10 @@ at 27/07/2012 14:02:49</description>
 <part name="T2" library="transistor" deviceset="*-NPN-" device="TO92" value="C945"/>
 <part name="P+13" library="supply1" deviceset="VCC" device=""/>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
-<part name="X1" library="crystal" deviceset="12M10AHC49HT" device="" value="12.07 MHz"/>
+<part name="X1" library="crystal" deviceset="12M10AHC49HT" device="" value="20 MHz"/>
 <part name="C13" library="resistor" deviceset="C-EU" device="C0805" value="10n"/>
 <part name="GND17" library="supply1" deviceset="GND" device=""/>
 <part name="R15" library="resistor" deviceset="R-EU_" device="R0805" value="10k"/>
-<part name="P+15" library="supply1" deviceset="VCC" device=""/>
 <part name="C14" library="resistor" deviceset="C-EU" device="C0805" value="10n"/>
 <part name="R17" library="resistor" deviceset="R-EU_" device="R0805" value="10k"/>
 <part name="R22" library="resistor" deviceset="R-EU_" device="R0805" value="5.1k"/>
@@ -17980,7 +17979,6 @@ at 27/07/2012 14:02:49</description>
 <part name="GND27" library="supply1" deviceset="GND" device=""/>
 <part name="P+9" library="supply1" deviceset="VCC" device=""/>
 <part name="P+10" library="supply1" deviceset="VCC" device=""/>
-<part name="P+14" library="supply1" deviceset="VCC" device=""/>
 <part name="R21" library="resistor" deviceset="R-EU_" device="R0805" value="10k"/>
 <part name="P+19" library="supply1" deviceset="VCC" device=""/>
 <part name="D5" library="diode" deviceset="DIODE_2CACA-" device="SOT23"/>
@@ -17996,6 +17994,8 @@ at 27/07/2012 14:02:49</description>
 <part name="GND29" library="supply1" deviceset="GND" device=""/>
 <part name="SV3" library="con-lstb" deviceset="MA03-1" device=""/>
 <part name="GND30" library="supply1" deviceset="GND" device=""/>
+<part name="_C2" library="resistor" deviceset="C-EU" device="C0805" value="22p"/>
+<part name="_C1" library="resistor" deviceset="C-EU" device="C0805" value="22p"/>
 </parts>
 <sheets>
 <sheet>
@@ -18099,14 +18099,13 @@ Rotor period when starting T ≈ 160 ms</text>
 <instance part="GND15" gate="1" x="73.66" y="7.62"/>
 <instance part="T2" gate="G$1" x="93.98" y="25.4" rot="MR0"/>
 <instance part="P+13" gate="VCC" x="109.22" y="45.72"/>
-<instance part="GND16" gate="1" x="208.28" y="93.98"/>
-<instance part="X1" gate="G$1" x="208.28" y="104.14" rot="MR0"/>
+<instance part="GND16" gate="1" x="203.2" y="88.9"/>
+<instance part="X1" gate="G$1" x="203.2" y="109.22"/>
 <instance part="C13" gate="G$1" x="187.96" y="38.1" rot="R270"/>
 <instance part="GND17" gate="1" x="193.04" y="25.4"/>
-<instance part="R15" gate="G$1" x="180.34" y="86.36" rot="R270"/>
-<instance part="P+15" gate="VCC" x="180.34" y="96.52"/>
-<instance part="C14" gate="G$1" x="220.98" y="114.3" rot="R180"/>
-<instance part="R17" gate="G$1" x="198.12" y="86.36" rot="R90"/>
+<instance part="R15" gate="G$1" x="172.72" y="78.74"/>
+<instance part="C14" gate="G$1" x="223.52" y="114.3" rot="R180"/>
+<instance part="R17" gate="G$1" x="172.72" y="86.36" rot="R180"/>
 <instance part="R22" gate="G$1" x="109.22" y="33.02" rot="R270"/>
 <instance part="R20" gate="G$1" x="203.2" y="38.1" rot="R90"/>
 <instance part="R19" gate="G$1" x="210.82" y="38.1" rot="R90"/>
@@ -18117,13 +18116,13 @@ Rotor period when starting T ≈ 160 ms</text>
 <instance part="R25" gate="G$1" x="109.22" y="55.88" rot="R90"/>
 <instance part="P+17" gate="VCC" x="109.22" y="66.04"/>
 <instance part="R33" gate="G$1" x="165.1" y="68.58" rot="R90"/>
-<instance part="P+18" gate="VCC" x="165.1" y="78.74"/>
+<instance part="P+18" gate="VCC" x="165.1" y="91.44"/>
 <instance part="R18" gate="G$1" x="99.06" y="101.6" rot="R90"/>
 <instance part="P+20" gate="VCC" x="99.06" y="111.76"/>
 <instance part="R42" gate="G$1" x="238.76" y="20.32" rot="R270"/>
-<instance part="GND21" gate="1" x="226.06" y="104.14"/>
+<instance part="GND21" gate="1" x="228.6" y="104.14"/>
 <instance part="R43" gate="G$1" x="246.38" y="20.32" rot="R270"/>
-<instance part="C16" gate="G$1" x="231.14" y="114.3" rot="R180"/>
+<instance part="C16" gate="G$1" x="233.68" y="114.3" rot="R180"/>
 <instance part="R44" gate="G$1" x="254" y="20.32" rot="R270"/>
 <instance part="R38" gate="G$1" x="185.42" y="121.92" rot="R90"/>
 <instance part="R40" gate="G$1" x="185.42" y="106.68" rot="R270"/>
@@ -18133,14 +18132,13 @@ Rotor period when starting T ≈ 160 ms</text>
 <instance part="GND22" gate="1" x="124.46" y="129.54"/>
 <instance part="GND23" gate="1" x="147.32" y="193.04"/>
 <instance part="GND24" gate="1" x="127" y="170.18"/>
-<instance part="P+2" gate="VCC" x="226.06" y="127"/>
+<instance part="P+2" gate="VCC" x="228.6" y="127"/>
 <instance part="GND25" gate="1" x="246.38" y="7.62"/>
 <instance part="GND26" gate="1" x="218.44" y="25.4"/>
 <instance part="P+21" gate="VCC" x="35.56" y="96.52"/>
 <instance part="GND27" gate="1" x="71.12" y="81.28"/>
 <instance part="P+9" gate="VCC" x="48.26" y="104.14"/>
 <instance part="P+10" gate="VCC" x="50.8" y="81.28"/>
-<instance part="P+14" gate="VCC" x="198.12" y="96.52"/>
 <instance part="R21" gate="G$1" x="271.78" y="91.44" rot="R90"/>
 <instance part="P+19" gate="VCC" x="271.78" y="101.6"/>
 <instance part="D5" gate="-B1" x="124.46" y="142.24" rot="MR270"/>
@@ -18156,6 +18154,8 @@ Rotor period when starting T ≈ 160 ms</text>
 <instance part="GND29" gate="1" x="254" y="160.02"/>
 <instance part="SV3" gate="G$1" x="254" y="208.28"/>
 <instance part="GND30" gate="1" x="271.78" y="205.74"/>
+<instance part="_C2" gate="G$1" x="208.28" y="99.06" rot="MR180"/>
+<instance part="_C1" gate="G$1" x="198.12" y="99.06" rot="MR180"/>
 </instances>
 <busses>
 <bus name="B$1">
@@ -18278,11 +18278,6 @@ Rotor period when starting T ≈ 160 ms</text>
 <junction x="109.22" y="40.64"/>
 </segment>
 <segment>
-<pinref part="P+15" gate="VCC" pin="VCC"/>
-<pinref part="R15" gate="G$1" pin="1"/>
-<wire x1="180.34" y1="93.98" x2="180.34" y2="91.44" width="0.1524" layer="91"/>
-</segment>
-<segment>
 <pinref part="R12" gate="G$1" pin="2"/>
 <pinref part="P+16" gate="VCC" pin="VCC"/>
 <wire x1="142.24" y1="119.38" x2="142.24" y2="121.92" width="0.1524" layer="91"/>
@@ -18295,7 +18290,15 @@ Rotor period when starting T ≈ 160 ms</text>
 <segment>
 <pinref part="P+18" gate="VCC" pin="VCC"/>
 <pinref part="R33" gate="G$1" pin="2"/>
-<wire x1="165.1" y1="76.2" x2="165.1" y2="73.66" width="0.1524" layer="91"/>
+<wire x1="165.1" y1="88.9" x2="165.1" y2="86.36" width="0.1524" layer="91"/>
+<pinref part="R15" gate="G$1" pin="1"/>
+<wire x1="165.1" y1="86.36" x2="165.1" y2="78.74" width="0.1524" layer="91"/>
+<wire x1="165.1" y1="78.74" x2="165.1" y2="73.66" width="0.1524" layer="91"/>
+<wire x1="165.1" y1="78.74" x2="167.64" y2="78.74" width="0.1524" layer="91"/>
+<junction x="165.1" y="78.74"/>
+<pinref part="R17" gate="G$1" pin="2"/>
+<wire x1="165.1" y1="86.36" x2="167.64" y2="86.36" width="0.1524" layer="91"/>
+<junction x="165.1" y="86.36"/>
 </segment>
 <segment>
 <pinref part="P+20" gate="VCC" pin="VCC"/>
@@ -18307,9 +18310,9 @@ Rotor period when starting T ≈ 160 ms</text>
 <pinref part="C16" gate="G$1" pin="2"/>
 <pinref part="IC3" gate="G$1" pin="39"/>
 <wire x1="264.16" y1="43.18" x2="251.46" y2="43.18" width="0.1524" layer="91"/>
-<wire x1="226.06" y1="124.46" x2="226.06" y2="121.92" width="0.1524" layer="91"/>
-<wire x1="226.06" y1="121.92" x2="231.14" y2="121.92" width="0.1524" layer="91"/>
-<wire x1="231.14" y1="121.92" x2="264.16" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="228.6" y1="124.46" x2="228.6" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="228.6" y1="121.92" x2="233.68" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="233.68" y1="121.92" x2="264.16" y2="121.92" width="0.1524" layer="91"/>
 <wire x1="264.16" y1="121.92" x2="264.16" y2="88.9" width="0.1524" layer="91"/>
 <pinref part="P+2" gate="VCC" pin="VCC"/>
 <wire x1="264.16" y1="88.9" x2="251.46" y2="88.9" width="0.1524" layer="91"/>
@@ -18327,13 +18330,13 @@ Rotor period when starting T ≈ 160 ms</text>
 <wire x1="215.9" y1="76.2" x2="215.9" y2="81.28" width="0.1524" layer="91"/>
 <junction x="215.9" y="81.28"/>
 <pinref part="C14" gate="G$1" pin="2"/>
-<wire x1="226.06" y1="121.92" x2="220.98" y2="121.92" width="0.1524" layer="91"/>
-<junction x="226.06" y="121.92"/>
-<wire x1="220.98" y1="121.92" x2="215.9" y2="121.92" width="0.1524" layer="91"/>
-<wire x1="231.14" y1="119.38" x2="231.14" y2="121.92" width="0.1524" layer="91"/>
-<wire x1="220.98" y1="119.38" x2="220.98" y2="121.92" width="0.1524" layer="91"/>
-<junction x="231.14" y="121.92"/>
-<junction x="220.98" y="121.92"/>
+<wire x1="228.6" y1="121.92" x2="223.52" y2="121.92" width="0.1524" layer="91"/>
+<junction x="228.6" y="121.92"/>
+<wire x1="223.52" y1="121.92" x2="215.9" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="233.68" y1="119.38" x2="233.68" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="119.38" x2="223.52" y2="121.92" width="0.1524" layer="91"/>
+<junction x="233.68" y="121.92"/>
+<junction x="223.52" y="121.92"/>
 <label x="223.52" y="84.328" size="1.27" layer="95"/>
 <label x="223.52" y="81.788" size="1.27" layer="95"/>
 <label x="223.52" y="76.708" size="1.27" layer="95"/>
@@ -18362,11 +18365,6 @@ Rotor period when starting T ≈ 160 ms</text>
 <pinref part="P+10" gate="VCC" pin="VCC"/>
 <wire x1="53.34" y1="76.2" x2="50.8" y2="76.2" width="0.1524" layer="91"/>
 <wire x1="50.8" y1="76.2" x2="50.8" y2="78.74" width="0.1524" layer="91"/>
-</segment>
-<segment>
-<pinref part="R17" gate="G$1" pin="2"/>
-<wire x1="198.12" y1="93.98" x2="198.12" y2="91.44" width="0.1524" layer="91"/>
-<pinref part="P+14" gate="VCC" pin="VCC"/>
 </segment>
 <segment>
 <pinref part="R21" gate="G$1" pin="2"/>
@@ -18539,19 +18537,27 @@ Rotor period when starting T ≈ 160 ms</text>
 </segment>
 <segment>
 <pinref part="GND21" gate="1" pin="GND"/>
-<wire x1="226.06" y1="109.22" x2="226.06" y2="106.68" width="0.1524" layer="91"/>
+<wire x1="228.6" y1="109.22" x2="228.6" y2="106.68" width="0.1524" layer="91"/>
 <pinref part="C16" gate="G$1" pin="1"/>
-<wire x1="231.14" y1="111.76" x2="231.14" y2="109.22" width="0.1524" layer="91"/>
-<wire x1="231.14" y1="109.22" x2="226.06" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="233.68" y1="111.76" x2="233.68" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="233.68" y1="109.22" x2="228.6" y2="109.22" width="0.1524" layer="91"/>
 <pinref part="C14" gate="G$1" pin="1"/>
-<wire x1="220.98" y1="111.76" x2="220.98" y2="109.22" width="0.1524" layer="91"/>
-<wire x1="220.98" y1="109.22" x2="226.06" y2="109.22" width="0.1524" layer="91"/>
-<junction x="226.06" y="109.22"/>
+<wire x1="223.52" y1="111.76" x2="223.52" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="109.22" x2="228.6" y2="109.22" width="0.1524" layer="91"/>
+<junction x="228.6" y="109.22"/>
 </segment>
 <segment>
 <pinref part="GND16" gate="1" pin="GND"/>
 <pinref part="X1" gate="G$1" pin="2"/>
-<wire x1="208.28" y1="99.06" x2="208.28" y2="96.52" width="0.1524" layer="91"/>
+<wire x1="203.2" y1="104.14" x2="203.2" y2="93.98" width="0.1524" layer="91"/>
+<pinref part="_C1" gate="G$1" pin="1"/>
+<wire x1="203.2" y1="93.98" x2="203.2" y2="91.44" width="0.1524" layer="91"/>
+<wire x1="198.12" y1="96.52" x2="198.12" y2="93.98" width="0.1524" layer="91"/>
+<wire x1="198.12" y1="93.98" x2="203.2" y2="93.98" width="0.1524" layer="91"/>
+<wire x1="203.2" y1="93.98" x2="208.28" y2="93.98" width="0.1524" layer="91"/>
+<pinref part="_C2" gate="G$1" pin="1"/>
+<wire x1="208.28" y1="93.98" x2="208.28" y2="96.52" width="0.1524" layer="91"/>
+<junction x="203.2" y="93.98"/>
 </segment>
 <segment>
 <pinref part="GND17" gate="1" pin="GND"/>
@@ -18882,7 +18888,7 @@ Rotor period when starting T ≈ 160 ms</text>
 <pinref part="R15" gate="G$1" pin="2"/>
 <junction x="180.34" y="38.1"/>
 <label x="223.52" y="79.248" size="1.27" layer="95"/>
-<wire x1="180.34" y1="81.28" x2="180.34" y2="78.74" width="0.1524" layer="91"/>
+<wire x1="177.8" y1="78.74" x2="180.34" y2="78.74" width="0.1524" layer="91"/>
 <junction x="180.34" y="78.74"/>
 </segment>
 <segment>
@@ -19056,12 +19062,16 @@ Rotor period when starting T ≈ 160 ms</text>
 </net>
 <net name="XTAL" class="0">
 <segment>
-<pinref part="X1" gate="G$1" pin="1"/>
-<wire x1="210.82" y1="104.14" x2="213.36" y2="104.14" width="0.1524" layer="91"/>
 <pinref part="IC3" gate="G$1" pin="2"/>
-<wire x1="213.36" y1="104.14" x2="213.36" y2="88.9" width="0.1524" layer="91"/>
+<wire x1="208.28" y1="109.22" x2="213.36" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="213.36" y1="109.22" x2="213.36" y2="88.9" width="0.1524" layer="91"/>
 <label x="223.52" y="89.408" size="1.27" layer="95"/>
 <wire x1="213.36" y1="88.9" x2="236.22" y2="88.9" width="0.1524" layer="91"/>
+<pinref part="_C2" gate="G$1" pin="2"/>
+<wire x1="208.28" y1="104.14" x2="208.28" y2="109.22" width="0.1524" layer="91"/>
+<pinref part="X1" gate="G$1" pin="3"/>
+<wire x1="205.74" y1="109.22" x2="208.28" y2="109.22" width="0.1524" layer="91"/>
+<junction x="208.28" y="109.22"/>
 </segment>
 <segment>
 <pinref part="U1" gate="A" pin="PB6"/>
@@ -19071,12 +19081,18 @@ Rotor period when starting T ≈ 160 ms</text>
 </net>
 <net name="EXTAL" class="0">
 <segment>
-<pinref part="X1" gate="G$1" pin="3"/>
 <pinref part="IC3" gate="G$1" pin="3"/>
-<wire x1="205.74" y1="104.14" x2="203.2" y2="104.14" width="0.1524" layer="91"/>
-<wire x1="203.2" y1="104.14" x2="203.2" y2="86.36" width="0.1524" layer="91"/>
-<wire x1="203.2" y1="86.36" x2="236.22" y2="86.36" width="0.1524" layer="91"/>
+<wire x1="198.12" y1="109.22" x2="193.04" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="193.04" y1="109.22" x2="193.04" y2="83.82" width="0.1524" layer="91"/>
+<wire x1="193.04" y1="83.82" x2="213.36" y2="83.82" width="0.1524" layer="91"/>
+<wire x1="213.36" y1="83.82" x2="213.36" y2="86.36" width="0.1524" layer="91"/>
+<wire x1="213.36" y1="86.36" x2="236.22" y2="86.36" width="0.1524" layer="91"/>
 <label x="223.52" y="86.868" size="1.27" layer="95"/>
+<pinref part="_C1" gate="G$1" pin="2"/>
+<wire x1="198.12" y1="104.14" x2="198.12" y2="109.22" width="0.1524" layer="91"/>
+<pinref part="X1" gate="G$1" pin="1"/>
+<wire x1="200.66" y1="109.22" x2="198.12" y2="109.22" width="0.1524" layer="91"/>
+<junction x="198.12" y="109.22"/>
 </segment>
 <segment>
 <pinref part="U1" gate="A" pin="PB7"/>
@@ -19090,6 +19106,9 @@ Rotor period when starting T ≈ 160 ms</text>
 <pinref part="R17" gate="G$1" pin="1"/>
 <wire x1="236.22" y1="73.66" x2="198.12" y2="73.66" width="0.1524" layer="91"/>
 <wire x1="198.12" y1="73.66" x2="198.12" y2="81.28" width="0.1524" layer="91"/>
+<wire x1="198.12" y1="81.28" x2="180.34" y2="81.28" width="0.1524" layer="91"/>
+<wire x1="180.34" y1="81.28" x2="180.34" y2="86.36" width="0.1524" layer="91"/>
+<wire x1="180.34" y1="86.36" x2="177.8" y2="86.36" width="0.1524" layer="91"/>
 <pinref part="IC3" gate="G$1" pin="10"/>
 <wire x1="236.22" y1="68.58" x2="198.12" y2="68.58" width="0.1524" layer="91"/>
 <wire x1="198.12" y1="68.58" x2="198.12" y2="73.66" width="0.1524" layer="91"/>
@@ -19254,7 +19273,7 @@ Rotor period when starting T ≈ 160 ms</text>
 <wire x1="190.5" y1="121.92" x2="190.5" y2="48.26" width="0.1524" layer="91"/>
 <wire x1="195.58" y1="121.92" x2="190.5" y2="121.92" width="0.1524" layer="91"/>
 <junction x="190.5" y="121.92"/>
-<label x="193.04" y="106.68" size="1.778" layer="95" rot="R90"/>
+<label x="193.04" y="111.76" size="1.778" layer="95" rot="R90"/>
 <label x="223.52" y="48.768" size="1.27" layer="95"/>
 </segment>
 <segment>

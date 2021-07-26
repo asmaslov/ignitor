@@ -1,5 +1,4 @@
 #include "config.h"
-#include "trace.h"
 #include "timer.h"
 #include "usart.h"
 #include "meter.h"
@@ -32,11 +31,9 @@ int main(void)
   run = true;
   sei();
   usart_init(&usart0, USART_0, DEBUG_BAUDRATE);
-  trace_setup(traceOutchar, traceFlush);
-  timer_configSimple(&timer2, TIMER_2, WD_RESET_FREQ_HZ, NULL, TIMER_OUTPUT_TOGGLE_B);
-  meter_init(ignite);
-
-  TRACE_INFO("System ready");
+  usart_putstr(&usart0, "System ready");
+  //timer_configSimple(&timer2, TIMER_2, WD_RESET_FREQ_HZ, NULL, TIMER_OUTPUT_TOGGLE_B);
+  //meter_init(ignite);
 
   while(!run);
   while(run) {

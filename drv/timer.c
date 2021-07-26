@@ -3,9 +3,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
-#include <string.h>
-
-#include "trace.h"
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
@@ -71,14 +68,14 @@ bool calc(const TimerIndex index, const uint32_t freq, const uint32_t *prescale,
     }
     while ((*ocr > max) && (*dv < dm));
     if ((*ocr > max) && (*dv == dm)) {
-        TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
+        //TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
         return false;
     }
     *dv = *dv - 1;
-    TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
-    TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, *ocr);
+    //TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
+    //TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, *ocr);
     *freqReal = F_CPU / (2 * prescale[*dv] * (1 + *ocr));
-    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
+    //TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
     return true;
 }
 
@@ -94,14 +91,14 @@ bool calc2(const TimerIndex index, const uint32_t freq, const uint32_t *prescale
     }
     while ((tmp > max) && (*dv < dm));
     if ((tmp > max) && (*dv == dm)) {
-        TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
+        //TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
         return false;
     }
     *dv = *dv - 1;
-    TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
-    TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, max);
+    //TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
+    //TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, max);
     *freqReal = F_CPU / (2 * prescale[*dv] * (1 + max));
-    TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
+    //TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
     return true;
 }
 
@@ -159,7 +156,6 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
     if (!timer || (freq > (F_CPU / 2))) {
         return false;
     }
-    memset(timer, 0, sizeof(Timer));
     timer->index = index;
     timer->handler = handler;
     switch (index) {
@@ -270,7 +266,6 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResul
     if (!timer || (freq > (F_CPU / 2))) {
         return false;
     }
-    memset(timer, 0, sizeof(Timer));
     timer->index = index;
     timer->resultHandler = resultHandler;
     switch (index) {
