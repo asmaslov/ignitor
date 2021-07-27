@@ -1,13 +1,13 @@
 #include "meter.h"
 #include "timer.h"
-#include <stdarg.h>
+#include <stddef.h>
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
  ****************************************************************************/
 
-MeterSparkHandler h;
-Timer timer1;
+static MeterSparkHandler h;
+static Timer timer1;
 
 /****************************************************************************
  * Public types/enumerations/variables                                      *
@@ -39,5 +39,5 @@ uint8_t meter_getIgnitionTiming(void) {
 
 uint32_t meter_getSpeed(void) {
     //TODO: Calculate and return speed
-    return 0;
+    return 0x12345678;
 }

@@ -13,7 +13,7 @@ typedef enum USART {
 
 typedef struct {
     UsartIndex index;
-    volatile uint8_t *dataReg;
+    volatile uint8_t *regData;
     uint8_t rxBuffer[USART_BUFFER_SIZE];
     uint8_t rxBufferIndexRead, rxBufferIndexWrite;
     volatile uint8_t rxBufferCount;

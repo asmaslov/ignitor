@@ -3,6 +3,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
+#include <stddef.h>
 #include <limits.h>
 
 /****************************************************************************
@@ -16,7 +17,7 @@
 #define FRAME_ERROR_0          (UCSR0A & (1 << FE0))
 #define DATA_OVERRUN_0         (UCSR0A & (1 << DOR0))
 #define PARITY_ERROR_0         (UCSR0A & (1 << UPE0))
-Usart *usart0;
+static Usart *usart0;
 #endif
 #ifdef UCSR1A
 #define RECEIVE_COMPLETE_1     (UCSR1A & (1 << RXC1))
@@ -25,7 +26,7 @@ Usart *usart0;
 #define FRAME_ERROR_1          (UCSR1A & (1 << FE1))
 #define DATA_OVERRUN_1         (UCSR1A & (1 << DOR1))
 #define PARITY_ERROR_1         (UCSR1A & (1 << UPE1))
-Usart *usart1;
+static Usart *usart1;
 #endif
 
 /****************************************************************************
@@ -36,7 +37,7 @@ Usart *usart1;
  * Private functions                                                        *
  ****************************************************************************/
 
-static inline bool dataRegisterEmpty(UsartIndex index) {
+static inline bool regDataisterEmpty(UsartIndex index) {
     switch (index) {
         #ifdef UCSR0A
         case USART_0:
@@ -63,7 +64,7 @@ ISR(USART_RX_vect) {
 ISR(USART0_RX_vect) {
 #endif
     if (usart0 && !FRAME_ERROR_0 && !PARITY_ERROR_0 && !DATA_OVERRUN_0) {
-        usart0->rxBuffer[usart0->rxBufferIndexWrite++] = UDR0;
+        usart0->rxBuffer[usart0->rxBufferIndexWrite++] = *usart0->regData;
         if (USART_BUFFER_SIZE == usart0->rxBufferIndexWrite) {
             usart0->rxBufferIndexWrite = 0;
         }
@@ -86,7 +87,7 @@ ISR(USART0_TX_vect) {
     if (usart0) {
         if (!usart0->txBufferEmpty)
         {
-            UDR0 = usart0->txBuffer[usart0->txBufferIndexRead++];
+            *usart0->regData = usart0->txBuffer[usart0->txBufferIndexRead++];
             if (USART_BUFFER_SIZE == usart0->txBufferIndexRead) {
                 usart0->txBufferIndexRead = 0;
             }
@@ -106,7 +107,7 @@ ISR(USART0_TX_vect) {
 ISR(USART1_RX_vect) {
     if (usart1 && !FRAME_ERROR_1 && !PARITY_ERROR_1 && !DATA_OVERRUN_1)
     {
-        usart1->rxBuffer[usart1->rxBufferIndexWrite++] = UDR1;
+        usart1->rxBuffer[usart1->rxBufferIndexWrite++] = *usart1->regData;
         if (USART_BUFFER_SIZE == usart1->rxBufferIndexWrite)
         {
             usart1->rxBufferIndexWrite = 0;
@@ -127,7 +128,7 @@ ISR(USART1_TX_vect) {
     if (usart1) {
         if (!usart1->txBufferEmpty)
         {
-            UDR1 = usart1->txBuffer[usart1->txBufferIndexRead++];
+            *usart1->regData = usart1->txBuffer[usart1->txBufferIndexRead++];
             if (USART_BUFFER_SIZE == usart1->txBufferIndexRead)
             {
                 usart1->txBufferIndexRead = 0;
@@ -171,7 +172,7 @@ bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
             UCSR0B = (1 << RXCIE0) | (1 << TXCIE0) | (1 << RXEN0) | (1 << TXEN0);
             UCSR0C = (1 << UCSZ00) | (1 << UCSZ01);
             UBRR0 = F_CPU / (16 * baudrate) - 1;
-            usart->dataReg = &UDR0;
+            usart->regData = &UDR0;
             usart0 = usart;
             break;
         #endif
@@ -181,7 +182,7 @@ bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
             UCSR1B = (1 << RXCIE1) | (1 << TXCIE1) | (1 << RXEN1) | (1 << TXEN1);
             UCSR1C = (1 << UCSZ10) | (1 << UCSZ11);
             UBRR1 = F_CPU / (16 * baudrate) - 1;
-            usart->dataReg = &UDR1;
+            usart->regData = &UDR1;
             usart1 = usart;
             break;
         #endif
@@ -194,7 +195,7 @@ bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
 void usart_putchar(Usart *usart, const uint8_t data) {
     if (usart) {
         while (usart->txBufferCount == USART_BUFFER_SIZE);
-        if (!usart->txBufferEmpty || !dataRegisterEmpty(usart->index)) {
+        if (!usart->txBufferEmpty || !regDataisterEmpty(usart->index)) {
             usart->txBuffer[usart->txBufferIndexWrite++] = data;
             if (USART_BUFFER_SIZE == usart->txBufferIndexWrite) {
                 usart->txBufferIndexWrite = 0;
@@ -206,7 +207,7 @@ void usart_putchar(Usart *usart, const uint8_t data) {
             usart->txBufferEmpty = false;
         }
         else {
-            *usart->dataReg = data;
+            *usart->regData = data;
         }
     }
 }

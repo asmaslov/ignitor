@@ -1,7 +1,10 @@
+*.s#*
 .settings
 *.o
 *.elf
 *.bin
 *.hex
 *.map
-*.s#*
+ui_*.py
+DEBUG.py
+__pycache__

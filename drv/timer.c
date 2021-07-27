@@ -2,7 +2,7 @@
 #include "config.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <stdbool.h>
+#include <stddef.h>
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
@@ -41,13 +41,13 @@ static const uint32_t prescale2[] = { 1, 1, 8, 32, 64, 128, 256, 1024 };
 static const uint8_t dv2 = 8;
 
 #ifdef TCCR0A
-Timer *timer0;
+static Timer *timer0;
 #endif
 #ifdef TCCR1A
-Timer *timer1;
+static Timer *timer1;
 #endif
 #ifdef TCCR2A
-Timer *timer2;
+static Timer *timer2;
 #endif
 
 /****************************************************************************
@@ -58,47 +58,20 @@ Timer *timer2;
  * Private functions                                                        *
  ****************************************************************************/
 
-bool calc(const TimerIndex index, const uint32_t freq, const uint32_t *prescale, const uint8_t dm, uint8_t *dv, const uint32_t max, uint32_t *ocr, uint32_t *freqReal) {
+static bool calc(const TimerIndex index, const uint32_t freq, const uint32_t *prescale, const uint8_t dm, uint8_t *dv, const uint32_t max, uint32_t *ocr, uint32_t *freqReal) {
     *dv = 1;
     do {
-        *ocr = F_CPU / (2 * freq * prescale[*dv++]) - 1;
+        *ocr = F_CPU / (2 * freq * prescale[(*dv)++]) - 1;
         if (*ocr == 0) {
             break;
         }
     }
     while ((*ocr > max) && (*dv < dm));
     if ((*ocr > max) && (*dv == dm)) {
-        //TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
         return false;
     }
-    *dv = *dv - 1;
-    //TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
-    //TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, *ocr);
+    (*dv)--;
     *freqReal = F_CPU / (2 * prescale[*dv] * (1 + *ocr));
-    //TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
-    return true;
-}
-
-bool calc2(const TimerIndex index, const uint32_t freq, const uint32_t *prescale, const uint8_t dm, uint8_t *dv, const uint32_t max, uint32_t *freqReal) {
-    uint32_t tmp;
-
-    *dv = 1;
-    do {
-        tmp = F_CPU / (2 * freq * prescale[*dv++]) - 1;
-        if (tmp == 0) {
-            break;
-        }
-    }
-    while ((tmp > max) && (*dv < dm));
-    if ((tmp > max) && (*dv == dm)) {
-        //TRACE_ERROR("Timer %d frequency too low\n\r", (int)index);
-        return false;
-    }
-    *dv = *dv - 1;
-    //TRACE_DEBUG("Timer %d divider set %lu\n\r", (int)index, prescale[*dv]);
-    //TRACE_DEBUG("Timer %d top set %lu\n\r", (int)index, max);
-    *freqReal = F_CPU / (2 * prescale[*dv] * (1 + max));
-    //TRACE_DEBUG("Timer %d frequency set %lu Hz\n\r", (int)index, *freqReal);
     return true;
 }
 
@@ -164,6 +137,7 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq, TimerHand
             if (!calc(timer->index, freq, prescale01, dv01, &timer->cs, UINT8_MAX, &ocr, &timer->freqReal)){
                 return false;
             }
+            TCCR0A = 0;
             TCCR0A = 0;
             TCCR0B = 0;
             TIMSK0 = 0;
@@ -263,6 +237,7 @@ bool timer_configCounter(Timer *timer, TimerIndex index, TimerResultHandler resu
 }
 
 bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResultHandler resultHandler) {
+    uint32_t ocr;
     if (!timer || (freq > (F_CPU / 2))) {
         return false;
     }
@@ -271,7 +246,7 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResul
     switch (index) {
         #ifdef TCCR1A
         case TIMER_1:
-            if (!calc2(timer->index, freq, prescale01, dv01, &timer->cs, UINT16_MAX, &timer->freqReal)){
+            if (!calc(timer->index, freq, prescale01, dv01, &timer->cs, UINT16_MAX, &ocr, &timer->freqReal)){
                 return false;
             }
             TCCR1A = 0;

@@ -1,7 +1,7 @@
 #ifndef METER_H_
 #define METER_H_
 
-#include <stdio.h>
+#include <stdint.h>
 
 #define METER_FREQUENCY_MAX_HZ  (F_CPU / 2)
 
