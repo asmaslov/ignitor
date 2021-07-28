@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "usart.h"
 #include "meter.h"
+#include <avr/io.h>
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
@@ -14,9 +15,6 @@ static Usart usart0;
 /****************************************************************************
  * Public types/enumerations/variables                                      *
  ****************************************************************************/
-
-volatile bool debug_sendBusy;
-volatile bool debug_bufferEmpty;
 
 /****************************************************************************
  * Private functions                                                        *
@@ -42,6 +40,15 @@ static void proceed(void) {
                 break;
             case DEBUG_PACKET_IDX_SET_ANGLE:
                 replyPacket.idx = controlPacket.idx;
+                if (meter_setAngle(controlPacket.value32)) {
+                    replyPacket.value32 = controlPacket.value32;
+                } else {
+                    replyPacket.value32 = UINT32_MAX;
+                }
+                break;
+            case DEBUG_PACKET_IDX_SET_LED:
+                replyPacket.idx = controlPacket.idx;
+                debug_led(controlPacket.value32);
                 replyPacket.value32 = controlPacket.value32;
                 break;
             default:
@@ -72,6 +79,8 @@ static void proceed(void) {
 
 void debug_init(void)
 {
+    DDRD |= (1 << DDD4);
+    debug_led(false);
     receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
     usart_init(&usart0, USART_0, DEBUG_BAUDRATE);
 }
@@ -80,7 +89,7 @@ void debug_work(void)
 {
     uint8_t byte;
 
-    if (!usart0.rxBufferEmpty)
+    if (usart0.rxBufferCount > 0)
     {
         byte = usart_getchar(&usart0);
         switch (receivedPartIndex) {
@@ -95,6 +104,10 @@ void debug_work(void)
                 if (((byte & DEBUG_PACKET_IDX_TYPE_MASK) >> DEBUG_PACKET_IDX_TYPE_SHFT) == DEBUG_PACKET_IDX_TYPE_SET) {
                     receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_0;
                 } else {
+                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_0] = 0;
+                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_1] = 0;
+                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_2] = 0;
+                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_3] = 0;
                     receivedPartIndex = DEBUG_CONTROL_PACKET_PART_CRC;
                 }
                 break;
@@ -116,11 +129,27 @@ void debug_work(void)
                 break;
             case DEBUG_CONTROL_PACKET_PART_CRC:
                 controlPacket.crc = byte;
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
                 proceed();
+                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
                 break;
             default:
                 break;
         }
+    }
+}
+
+void debug_led(bool on) {
+    if (on) {
+        PORTD &= ~(1 << PD4);
+    } else {
+        PORTD |= (1 << PD4);
+    }
+}
+
+void debug_toggle(void) {
+    if (PIND & (1 << PIND4)) {
+        PORTD &= ~(1 << PD4);
+    } else {
+        PORTD |= (1 << PD4);
     }
 }

@@ -12,13 +12,15 @@ volatile bool run;
 
 static Timer timer2;
 
-void ignite(MeterSpark spark) {
+static void ignite(MeterSpark spark) {
     //TODO: Ignite
 }
 
-void initPins(void)
+static void watchdog_init(void)
 {
     DDRD |= (1 << DDD3);
+    timer_configSimple(&timer2, TIMER_2, WD_RESET_FREQ_HZ, NULL, TIMER_OUTPUT_TOGGLE_B);
+    timer_run(&timer2);
 }
 
 int main(void)
@@ -27,10 +29,8 @@ int main(void)
     run = true;
     sei();
 
-    initPins();
     debug_init();
-    timer_configSimple(&timer2, TIMER_2, WD_RESET_FREQ_HZ, NULL, TIMER_OUTPUT_TOGGLE_B);
-    timer_run(&timer2);
+    watchdog_init();
     meter_init(ignite);
     while (run) {
         debug_work();

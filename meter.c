@@ -28,8 +28,9 @@ void ready(uint32_t timeoutUs) {
 
 void meter_init(MeterSparkHandler handler) {
     if (handler) {
-        timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_MAX_HZ, ready);
         h = handler;
+        //timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_MAX_HZ, ready);
+        //timer_run(&timer1);
     }
     a = 246;
 }

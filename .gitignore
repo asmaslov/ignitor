@@ -1,10 +1,14 @@
-*.s#*
 .settings
+*.s#*
 *.o
 *.elf
 *.bin
 *.hex
 *.map
 ui_*.py
+*_rc.py
 DEBUG.py
 __pycache__
+*.spec
+build
+dist

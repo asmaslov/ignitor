@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define USART_BUFFER_SIZE   8
+#define USART_BUFFER_SIZE  10
 
 typedef enum USART {
   USART_0 = 0,
@@ -17,11 +17,9 @@ typedef struct {
     uint8_t rxBuffer[USART_BUFFER_SIZE];
     uint8_t rxBufferIndexRead, rxBufferIndexWrite;
     volatile uint8_t rxBufferCount;
-    volatile bool rxBufferLocked, rxBufferEmpty, rxBufferOverflow;
     uint8_t txBuffer[USART_BUFFER_SIZE];
     uint8_t txBufferIndexRead, txBufferIndexWrite;
     volatile uint8_t txBufferCount;
-    volatile bool txBufferLocked, txBufferEmpty;
 } Usart;
 
 bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate);

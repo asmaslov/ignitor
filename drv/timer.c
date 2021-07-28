@@ -264,7 +264,7 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResul
 
 
     //TODO: configMeter
-    return false;
+    return true;
 }
 
 void timer_run(Timer *timer) {

@@ -2,6 +2,7 @@
 #define DEBUG_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define DEBUG_BAUDRATE  19200
 
@@ -41,15 +42,15 @@ typedef union {
     };
 } DebugControlPacket;
 
-#define DEBUG_REPLY_PACKET_LEN            7
+#define DEBUG_REPLY_PACKET_LEN           7
 
-#define DEBUG_REPLY_PACKET_PART_HEADER    0
-#define DEBUG_REPLY_PACKET_PART_IDX       1
-#define DEBUG_REPLY_PACKET_PART_VALUE_0   2
-#define DEBUG_REPLY_PACKET_PART_VALUE_1   3
-#define DEBUG_REPLY_PACKET_PART_VALUE_2   4
-#define DEBUG_REPLY_PACKET_PART_VALUE_3   5
-#define DEBUG_REPLY_PACKET_PART_CRC       6
+#define DEBUG_REPLY_PACKET_PART_HEADER   0
+#define DEBUG_REPLY_PACKET_PART_IDX      1
+#define DEBUG_REPLY_PACKET_PART_VALUE_0  2
+#define DEBUG_REPLY_PACKET_PART_VALUE_1  3
+#define DEBUG_REPLY_PACKET_PART_VALUE_2  4
+#define DEBUG_REPLY_PACKET_PART_VALUE_3  5
+#define DEBUG_REPLY_PACKET_PART_CRC      6
 
 typedef union {
     uint8_t bytes[DEBUG_REPLY_PACKET_LEN];
@@ -81,8 +82,11 @@ typedef union {
 #define DEBUG_PACKET_IDX_GET_SPEED  0x01
 #define DEBUG_PACKET_IDX_GET_ANGLE  0x21
 #define DEBUG_PACKET_IDX_SET_ANGLE  0xA1
+#define DEBUG_PACKET_IDX_SET_LED    0xAF
 
 void debug_init(void);
 void debug_work(void);
+void debug_led(bool on);
+void debug_toggle(void);
 
 #endif /* DEBUG_H_ */

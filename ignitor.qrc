@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="Icons">
+    <file alias="ignitor">ignitor.ico</file>
+  </qresource>
+</RCC>
