@@ -82,6 +82,7 @@
      <string>Port</string>
     </property>
     <addaction name="actionExit"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menuPort"/>
   </widget>
@@ -96,22 +97,5 @@
   </action>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>lineEditSpeed</sender>
-   <signal>returnPressed()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>setFocus()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>255</x>
-     <y>60</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>209</x>
-     <y>134</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

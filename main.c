@@ -31,7 +31,7 @@ int main(void)
     debug_init();
     timer_configSimple(&timer2, TIMER_2, WD_RESET_FREQ_HZ, NULL, TIMER_OUTPUT_TOGGLE_B);
     timer_run(&timer2);
-    //meter_init(ignite);
+    meter_init(ignite);
     while (run) {
         debug_work();
     }

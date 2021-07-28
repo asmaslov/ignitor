@@ -8,8 +8,7 @@ SRCS_C = main.c \
          meter.c \
          debug.c \
          drv/usart.c \
-         drv/timer.c \
-         drv/adc.c
+         drv/timer.c
 
 OBJS=$(SRCS_C:.c=.o )
 

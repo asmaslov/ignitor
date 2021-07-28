@@ -19,21 +19,24 @@
 #define DEBUG_CONTROL_PACKET_PART_VALUE_3  5
 #define DEBUG_CONTROL_PACKET_PART_CRC      6
 
-#define DEBUG_CONTROL_PACKET_IDX_UNDEFINED  0x00
-#define DEBUG_CONTROL_PACKET_IDX_TYPE_SHFT  7
-#define DEBUG_CONTROL_PACKET_IDX_TYPE_MASK  (1 << DEBUG_CONTROL_PACKET_IDX_TYPE_SHFT)
-#define DEBUG_CONTROL_PACKET_IDX_TYPE_GET   0
-#define DEBUG_CONTROL_PACKET_IDX_TYPE_SET   1
-#define DEBUG_CONTROL_PACKET_IDX_GET_SPEED  0x01
-#define DEBUG_CONTROL_PACKET_IDX_SET_ANGLE  0x81
-
-
 typedef union {
     uint8_t bytes[DEBUG_CONTROL_PACKET_LEN];
     struct {
         uint8_t hdr;
         uint8_t idx;
-        uint32_t value;
+        union {
+            uint32_t value32;
+            struct {
+                uint16_t value16_0;
+                uint16_t value16_1;
+            };
+            struct {
+                uint8_t value8_0;
+                uint8_t value8_1;
+                uint8_t value8_2;
+                uint8_t value8_3;
+            };
+        };
         uint8_t crc;
     };
 } DebugControlPacket;
@@ -53,10 +56,31 @@ typedef union {
     struct {
         uint8_t hdr;
         uint8_t idx;
-        uint32_t value;
+        union {
+            uint32_t value32;
+            struct {
+                uint16_t value16_0;
+                uint16_t value16_1;
+            };
+            struct {
+                uint8_t value8_0;
+                uint8_t value8_1;
+                uint8_t value8_2;
+                uint8_t value8_3;
+            };
+        };
         uint8_t crc;
     };
 } DebugReplyPacket;
+
+#define DEBUG_PACKET_IDX_UNDEFINED  0x00
+#define DEBUG_PACKET_IDX_TYPE_SHFT  7
+#define DEBUG_PACKET_IDX_TYPE_MASK  (1 << DEBUG_PACKET_IDX_TYPE_SHFT)
+#define DEBUG_PACKET_IDX_TYPE_GET   0
+#define DEBUG_PACKET_IDX_TYPE_SET   1
+#define DEBUG_PACKET_IDX_GET_SPEED  0x01
+#define DEBUG_PACKET_IDX_GET_ANGLE  0x21
+#define DEBUG_PACKET_IDX_SET_ANGLE  0xA1
 
 void debug_init(void);
 void debug_work(void);
