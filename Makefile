@@ -1,51 +1,66 @@
-PRJ=ignitor
-MCU=atmega48
-F_CPU=20000000
+PRJ = ignitor
+MCU = atmega48
+F_CPU = 20000000
 
-RM=rm -f
+RM = rm -rf
+MKDIR = mkdir -p
+SRC_DIR = src
+BUILD_DIR = build
+DIST_DIR = dist
 
-SRCS_C = main.c \
-         meter.c \
-         debug.c \
-         drv/usart.c \
-         drv/timer.c
+SRCS_C = $(shell find ${SRC_DIR} -type f -name *.c)
+INCS_C = $(shell find ${SRC_DIR} -type f -name *.h)
+INCS_DIRS = $(addprefix -I, $(dir ${INCS_C}))
+OBJS_DIRS = $(subst ${SRC_DIR}, ${BUILD_DIR}, $(dir ${SRCS_C}))
+OBJS = $(subst ${SRC_DIR}, ${BUILD_DIR}, $(patsubst %.c, %.o, ${SRCS_C}))
 
-OBJS=$(SRCS_C:.c=.o )
-
-CC=avr-gcc
-OBJCOPY=avr-objcopy
-SIZE=avr-size
+CC = avr-gcc
+OBJCOPY = avr-objcopy
+SIZE = avr-size
 
 DEFINES = -DF_CPU=${F_CPU}
-INCLUDES = -I. -I./drv
 OPTIONS = -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -funsigned-char -funsigned-bitfields
-CFLAGS = -mmcu=${MCU} ${DEFINES} ${INCLUDES} -std=gnu99 -Wall -g2 -gstabs -Os ${OPTIONS}
+CFLAGS = -mmcu=${MCU} ${DEFINES} ${INCS_DIRS} -std=gnu99 -Wall -g2 -gstabs -Os ${OPTIONS}
 LDFLAGS = -Wl,--gc-sections -Wl,-Map,${PRJ}.map
 
-all: ${PRJ}.hex
-	pyuic5 ${PRJ}.ui -o ui_${PRJ}.py
-	pyrcc5 ${PRJ}.qrc -o ${PRJ}_rc.py
-	python h2py.py debug.h
-	${SIZE} --format=avr --mcu=${MCU} ${PRJ}.elf
+$(foreach S, $(SRCS_C), \
+	$(foreach O, $(filter %$(basename $(notdir $S)).o, $(OBJS)), \
+		$(eval $O: $S) \
+	) \
+)
 
-app:
-	pyinstaller --hidden-import ui_ignitor --onefile --windowed --icon=${PRJ}.ico ${PRJ}.py
+%.o:
+	$(if $(wildcard $(@D)), , ${MKDIR} $(@D) &&) ${CC} ${CFLAGS} -c $< -o $@
 
-%.o: %.c
-	${CC} -c $(CFLAGS) $< -o $@
+${BUILD_DIR}/${PRJ}.elf: ${OBJS}
+	${CC} -mmcu=${MCU} ${LDFLAGS} -o $@ ${OBJS}
 
-${PRJ}.hex: ${PRJ}.elf
+${PRJ}.hex: ${BUILD_DIR}/${PRJ}.elf
 	${OBJCOPY} -R .eeprom -R .fuse -R .lock -R .signature -O ihex $< $@
 
-${PRJ}.elf: ${OBJS} 
-	${CC} -mmcu=${MCU} ${LDFLAGS} -o $@ $^
+ui_${PRJ}.py: ${PRJ}.ui
+	pyuic5 $< -o $@
+
+${PRJ}_rc.py: ${PRJ}.qrc
+	pyrcc5 $< -o $@
+	
+DEBUG.py: ${SRC_DIR}/debug.h
+	python h2py.py $<
+
+all: ${PRJ}.hex ui_${PRJ}.py ${PRJ}_rc.py DEBUG.py
+	${SIZE} --format=avr --mcu=${MCU} ${BUILD_DIR}/${PRJ}.elf
+
+app: ${PRJ}.py ${PRJ}_rc.py DEBUG.py
+	pyinstaller --hidden-import ui_ignitor --onefile --windowed --icon=${PRJ}.ico ${PRJ}.py
 
 clean:
 	${RM}	${OBJS}
-	${RM}	${PRJ}.elf
+	${RM}	${BUILD_DIR}/${PRJ}.elf
+	${RM}	${OBJS_DIRS}
+	${RM}	${BUILD_DIR}
 	${RM}	${PRJ}.hex
 	${RM}	${PRJ}.map
 	${RM}	ui_${PRJ}.py
 	${RM}	${PRJ}_rc.py
 	${RM}	DEBUG.py
-	${RM}	dist/*
+	${RM}	${DIST_DIR}

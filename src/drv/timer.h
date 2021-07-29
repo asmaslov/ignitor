@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 typedef void (*TimerHandler)(void);
-typedef void (*TimerResultHandler)(uint32_t timeoutUs);
+typedef void (*TimerResultHandler)(uint16_t result);
 
 typedef enum TIMER {
     TIMER_0 = 0,

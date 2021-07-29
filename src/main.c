@@ -4,6 +4,7 @@
 #include "meter.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -12,8 +13,24 @@ volatile bool run;
 
 static Timer timer2;
 
-static void ignite(MeterSpark spark) {
-    //TODO: Ignite
+static void sparks_init(void) {
+    DDRC |= (1 << DDC2) | (1 << DDC3);
+    PORTC |= (1 << PC2) | (1 << PC3);
+}
+
+static void sparks_ignite(MeterSpark spark) {
+    switch (spark) {
+        case METER_SPARK_0:
+
+            break;
+        case METER_SPARK_1:
+
+            break;
+        default:
+            break;
+    }
+
+    //TODO: Ignite and setup timer0 for spark die depending on speed
 }
 
 static void watchdog_init(void)
@@ -25,13 +42,13 @@ static void watchdog_init(void)
 
 int main(void)
 {
-    cli();
-    run = true;
-    sei();
-
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
+        run = true;
+    }
     debug_init();
     watchdog_init();
-    meter_init(ignite);
+    sparks_init();
+    meter_init(sparks_ignite);
     while (run) {
         debug_work();
     }

@@ -24,6 +24,7 @@ static void proceed(void) {
     uint8_t i;
     uint8_t crc = 0;
 
+    //TODO: use crc16.h
     for (i = 0; i < DEBUG_CONTROL_PACKET_PART_CRC; i++) {
         crc += controlPacket.bytes[i];
     }
@@ -77,20 +78,17 @@ static void proceed(void) {
  * Public functions                                                         *
  ****************************************************************************/
 
-void debug_init(void)
-{
+void debug_init(void) {
     DDRD |= (1 << DDD4);
     debug_led(false);
     receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
     usart_init(&usart0, USART_0, DEBUG_BAUDRATE);
 }
 
-void debug_work(void)
-{
+void debug_work(void) {
     uint8_t byte;
 
-    if (usart0.rxBufferCount > 0)
-    {
+    if (usart0.rxBufferCount > 0) {
         byte = usart_getchar(&usart0);
         switch (receivedPartIndex) {
             case DEBUG_CONTROL_PACKET_PART_HEADER:

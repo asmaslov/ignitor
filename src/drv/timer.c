@@ -99,10 +99,9 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 ISR(TIMER1_CAPT_vect) {
-    uint32_t timeoutUs = 1000000UL * ICR1 / timer1->freqReal;
     if (timer1) {
         if (timer1->resultHandler) {
-            timer1->resultHandler(timeoutUs);
+            timer1->resultHandler(ICR1);
         }
     }
 }
@@ -252,8 +251,9 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq, TimerResul
             TCCR1A = 0;
             TCCR1B = 0;
             TCCR1C = 0;
-            TIMSK1 = (1 << ICIE1);
+            TIMSK1 = 0;
             TCNT1 = 0;
+            TIMSK1 = (1 << ICIE1);
             TCCR1B = (1 << ICNC1) | (0 << ICES1);
             timer1 = timer;
             break;

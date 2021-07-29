@@ -133,6 +133,7 @@ ISR(USART1_TX_vect) {
  ****************************************************************************/
 
 bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
+    //TODO: use setbaud.h
     if (!usart) {
         return false;
     }
