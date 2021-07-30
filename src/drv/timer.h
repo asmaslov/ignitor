@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 typedef void (*TimerHandler)(void);
-typedef void (*TimerResultHandler)(uint16_t result);
+typedef void (*TimerResultHandler)(uint32_t result);
 
 typedef enum TIMER {
     TIMER_0 = 0,
@@ -33,8 +33,9 @@ typedef struct {
     TimerIndex index;
     TimerHandler handler;
     TimerResultHandler resultHandler;
-    uint8_t cs;
+    uint8_t clockSelect;
     uint32_t freqReal;
+    uint32_t overflowCount;
 } Timer;
 
 bool timer_configSimple(Timer *timer, const TimerIndex index,
@@ -49,7 +50,7 @@ bool timer_configMeter(Timer *timer, const TimerIndex index,
                        const TimerResultHandler resultHandler);
 void timer_run(Timer *timer);
 void timer_stop(Timer *timer);
-void timer_set(Timer *timer, const uint8_t duty);
+void timer_setPwmDuty(Timer *timer, const uint8_t duty);
 uint32_t timer_get(Timer *timer);
 
 #endif /* TIMER_H_ */

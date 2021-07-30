@@ -21,6 +21,7 @@ static Usart usart0;
  ****************************************************************************/
 
 static void proceed(void) {
+    MeterTimingRecord record;
     uint8_t i;
     uint8_t crc = 0;
 
@@ -31,17 +32,21 @@ static void proceed(void) {
     if (crc == controlPacket.crc) {
         replyPacket.hdr = DEBUG_HEADER;
         switch (controlPacket.idx) {
-            case DEBUG_PACKET_IDX_GET_SPEED:
+            case DEBUG_PACKET_IDX_GET_RPM:
                 replyPacket.idx = controlPacket.idx;
-                replyPacket.value32 = meter_getSpeed();
+                replyPacket.value32 = meter_getRpm();
                 break;
-            case DEBUG_PACKET_IDX_GET_ANGLE:
+            case DEBUG_PACKET_IDX_GET_TIMING:
                 replyPacket.idx = controlPacket.idx;
-                replyPacket.value32 = meter_getAngle();
+                replyPacket.value8_0 = controlPacket.value8_0;
+                replyPacket.value8_1 = getTimingRecord(controlPacket.value8_0).timing;
+                replyPacket.value16_1 = getTimingRecord(controlPacket.value8_0).rpm;
                 break;
-            case DEBUG_PACKET_IDX_SET_ANGLE:
+            case DEBUG_PACKET_IDX_SET_TIMING:
                 replyPacket.idx = controlPacket.idx;
-                if (meter_setAngle(controlPacket.value32)) {
+                record.rpm = controlPacket.value16_1;
+                record.timing = controlPacket.value8_1;
+                if (meter_setTimingRecord(controlPacket.value8_0, record)) {
                     replyPacket.value32 = controlPacket.value32;
                 } else {
                     replyPacket.value32 = UINT32_MAX;
@@ -99,15 +104,7 @@ void debug_work(void) {
                 break;
             case DEBUG_CONTROL_PACKET_PART_IDX:
                 controlPacket.idx = byte;
-                if (((byte & DEBUG_PACKET_IDX_TYPE_MASK) >> DEBUG_PACKET_IDX_TYPE_SHFT) == DEBUG_PACKET_IDX_TYPE_SET) {
-                    receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_0;
-                } else {
-                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_0] = 0;
-                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_1] = 0;
-                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_2] = 0;
-                    controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_3] = 0;
-                    receivedPartIndex = DEBUG_CONTROL_PACKET_PART_CRC;
-                }
+                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_0;
                 break;
             case DEBUG_CONTROL_PACKET_PART_VALUE_0:
                 controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_0] = byte;

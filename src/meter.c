@@ -8,12 +8,16 @@
  * Private types/enumerations/variables                                     *
  ****************************************************************************/
 
+//TODO: Keep timings in eeprom
+static MeterTimingRecord records[METER_TIMING_RECORD_TOTAL_SLOTS];
+
 static MeterSparkHandler handler;
 static Timer timer1;
+static uint8_t tickIndex;
+static uint8_t ticks[METER_TICKS];
+static uint32_t tickSum;
 static bool captured;
-static uint32_t speed;
-
-static uint32_t a;
+static uint32_t rpm;
 
 /****************************************************************************
  * Public types/enumerations/variables                                      *
@@ -23,9 +27,49 @@ static uint32_t a;
  * Private functions                                                        *
  ****************************************************************************/
 
-static void ready(uint16_t result) {
-    uint32_t timeoutUs = 1000000UL * result / timer1.freqReal;
-    //TODO: Find first cycle, determine speed, call h(METER_SPARK_X)
+static uint8_t getTiming(uint32_t recordRpm) {
+    uint8_t i;
+
+    for (i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS - 1; i++) {
+        if (recordRpm < records[i+1].rpm)
+        {
+            return records[i].timing;
+        }
+    }
+    return UINT8_MAX;
+}
+
+static void ready(uint32_t result) {
+    uint8_t i;
+
+    if (result < (2 * UINT16_MAX)) {
+        ticks[tickIndex] = result;
+        if (captured) {
+            if (METER_TICKS == ++tickIndex) {
+                tickIndex = 0;
+            }
+            tickSum = 0;
+            for (i = 0; i < METER_TICKS; i++) {
+                tickSum += ticks[i];
+            }
+            rpm = METER_FREQUENCY_HZ / tickSum / 60;
+            //TODO: If first or third cycle run timer0 to call
+            //      handler(METER_SPARK_0/1) with delay based on rpm
+        } else {
+            if (METER_TICKS == ++tickIndex) {
+                tickIndex = 0;
+                //TODO: Find first and third cycle
+                captured = true;
+            }
+        }
+    } else {
+        tickIndex = 0;
+        for (i = 0; i < METER_TICKS; i++) {
+            ticks[i] = 0;
+        }
+        tickSum = 0;
+        captured = false;
+    }
 }
 
 /****************************************************************************
@@ -33,34 +77,35 @@ static void ready(uint16_t result) {
  ****************************************************************************/
 
 void meter_init(MeterSparkHandler sparkHandler) {
-    if(METER_FREQUENCY_HZ)
     handler = sparkHandler;
     DDRD |= (1 << DDD5) | (1 << DDD6);
     PORTD |= (1 << PD5) | (1 << PD6);
-    timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_MAX_HZ, ready);
+    timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_HZ, ready);
     timer_run(&timer1);
     //TODO: Setup NEU_SIG IRQ
-    a = 246;
 }
 
-uint8_t meter_getIgnitionTiming(void) {
-    //TODO: Calculate and return angle based on speed
-    return 0;
+uint32_t meter_getRpm(void) {
+    if (captured) {
+        return rpm;
+    }
+    return UINT32_MAX;
 }
 
-uint32_t meter_getSpeed(void) {
-    //TODO: Calculate and return speed
-    return 0x12345678;
+MeterTimingRecord getTimingRecord(uint8_t slot) {
+    MeterTimingRecord error = {.rpm = UINT16_MAX, .timing = UINT8_MAX};
+
+    if (slot < METER_TIMING_RECORD_TOTAL_SLOTS) {
+        return records[slot];
+    }
+    return error;
 }
 
-uint32_t meter_getAngle(void) {
-    //TODO: Calculate and return speed
-    return a;
-}
-
-bool meter_setAngle(uint32_t angle)
+bool meter_setTimingRecord(uint8_t slot, MeterTimingRecord record)
 {
-    //TODO: Check and set angle
-    a = angle;
-    return true;
+    if (slot < METER_TIMING_RECORD_TOTAL_SLOTS) {
+        records[slot] = record;
+        return true;
+    }
+    return false;
 }

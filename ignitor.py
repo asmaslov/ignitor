@@ -20,7 +20,7 @@ class MainWindow(QtWidgets.QMainWindow):
     timerPortRead = QtCore.QTimer()
     timerPortReadTimeoutMs = 50
     timerPortRequest = QtCore.QTimer()
-    requestIdx = DEBUG_PACKET_IDX_GET_ANGLE
+    requestIdx = DEBUG_PACKET_IDX_GET_TIMING
     timerportWriteTimeoutMs = 100
     eventRequestComplete = asyncio.Event()
     eventWriteComplete = asyncio.Event()
@@ -58,15 +58,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 if DEBUG_HEADER == data[DEBUG_REPLY_PACKET_PART_HEADER]:
                     if DEBUG_PACKET_IDX_TYPE_GET == (data[DEBUG_REPLY_PACKET_PART_IDX] & DEBUG_PACKET_IDX_TYPE_MASK) >> DEBUG_PACKET_IDX_TYPE_SHFT:
                         self.eventRequestComplete.set()
-                        if DEBUG_PACKET_IDX_GET_SPEED == data[DEBUG_REPLY_PACKET_PART_IDX]:
+                        if DEBUG_PACKET_IDX_GET_RPM == data[DEBUG_REPLY_PACKET_PART_IDX]:
                             speed = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_CRC], 'little')
                             self.ui.lineEditSpeed.setText(str(speed))
-                        elif DEBUG_PACKET_IDX_GET_ANGLE == data[DEBUG_REPLY_PACKET_PART_IDX]:
+                        elif DEBUG_PACKET_IDX_GET_TIMING == data[DEBUG_REPLY_PACKET_PART_IDX]:
                             angle = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_CRC], 'little')
                             self.ui.lineEditAngle.setText(str(angle))
                     else:
                         self.eventWriteComplete.set()
-                        if DEBUG_PACKET_IDX_SET_ANGLE == data[DEBUG_REPLY_PACKET_PART_IDX]:
+                        if DEBUG_PACKET_IDX_SET_TIMING == data[DEBUG_REPLY_PACKET_PART_IDX]:
                             self.ui.statusbar.showMessage('Acknowledged angle')
                         elif DEBUG_PACKET_IDX_SET_LED == data[DEBUG_REPLY_PACKET_PART_IDX]:
                             self.ui.statusbar.showMessage('Acknowledged led')
@@ -80,8 +80,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 packet = bytearray()
                 packet.append(DEBUG_HEADER)
                 packet.append(self.requestIdx)
-                if (DEBUG_PACKET_IDX_GET_ANGLE == self.requestIdx):
-                    self.requestIdx = DEBUG_PACKET_IDX_GET_SPEED
+                if (DEBUG_PACKET_IDX_GET_TIMING == self.requestIdx):
+                    self.requestIdx = DEBUG_PACKET_IDX_GET_RPM
+                    idx = 0
+                    #TODO: Request all timings
+                    packet.append(idx)
+                else:
+                    packet.append(0)
+                packet.append(0)
+                packet.append(0)
+                packet.append(0)
                 crc = 0
                 for one in packet:
                     crc = crc + one
@@ -139,9 +147,10 @@ class MainWindow(QtWidgets.QMainWindow):
             event.ignore()
 
     def on_pushButtonUpdate_released(self):
+        #TODO: Write all timings
         if isint(self.ui.lineEditAngle.text()):
             angle = abs(int(self.ui.lineEditAngle.text()))
-            self.portWrite(DEBUG_PACKET_IDX_SET_ANGLE, angle)
+            self.portWrite(DEBUG_PACKET_IDX_SET_TIMING, angle)
         else:
             self.ui.statusbar.showMessage('Angle wrong value')
 

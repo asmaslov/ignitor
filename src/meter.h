@@ -4,28 +4,35 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define METER_RPM_LOW   1650
-#define METER_RPM_HIGH  3500
-#define METER_RPM_MAX   10000
+#define METER_RPM_MIN     100
+#define METER_RPM_LOW    1650
+#define METER_RPM_HIGH   3500
+#define METER_RPM_MAX   13000
+
+#define METER_TIMING_RECORD_TOTAL_SLOTS  11
 
 #define METER_TIMING_UNDER_LOW  5
 #define METER_TIMING_OVER_HIGH  30
 
-#define METER_FREQUENCY_MAX_HZ  (F_CPU / 2)
+#define METER_FREQUENCY_HZ  (F_CPU / 64)
 
-#define METER_FREQUENCY_HZ  (F_CPU / 2)
+#define METER_TICKS  4
 
 typedef enum METER_SPARK {
     METER_SPARK_0 = 0,
     METER_SPARK_1 = 1
 } MeterSpark;
 
+typedef struct _MeterTimingRecord {
+    uint16_t rpm;
+    uint8_t timing;
+} MeterTimingRecord;
+
 typedef void (*MeterSparkHandler)(MeterSpark spark);
 
 void meter_init(MeterSparkHandler sparkHandler);
-uint8_t meter_getIgnitionTiming(void);
-uint32_t meter_getSpeed(void);
-uint32_t meter_getAngle(void);
-bool meter_setAngle(uint32_t angle);
+uint32_t meter_getRpm(void);
+MeterTimingRecord getTimingRecord(uint8_t slot);
+bool meter_setTimingRecord(uint8_t slot, MeterTimingRecord record);
 
 #endif /* METER_H_ */
