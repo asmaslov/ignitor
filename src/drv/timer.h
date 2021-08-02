@@ -34,23 +34,22 @@ typedef struct {
     TimerHandler handler;
     TimerResultHandler resultHandler;
     uint8_t clockSelect;
-    uint32_t freqReal;
     uint32_t overflowCount;
 } Timer;
 
-bool timer_configSimple(Timer *timer, const TimerIndex index,
+void timer_configSimple(Timer *timer, const TimerIndex index,
                         const uint32_t freq, const TimerHandler handler,
                         const TimerOutput out);
-bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
+void timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                      const TimerPwmMode mode);
-bool timer_configCounter(Timer *timer, const TimerIndex index,
+void timer_configCounter(Timer *timer, const TimerIndex index,
                          const TimerResultHandler resultHandler);
-bool timer_configMeter(Timer *timer, const TimerIndex index,
+void timer_configMeter(Timer *timer, const TimerIndex index,
                        const uint32_t freq,
                        const TimerResultHandler resultHandler);
 void timer_run(Timer *timer);
 void timer_stop(Timer *timer);
 void timer_setPwmDuty(Timer *timer, const uint8_t duty);
-uint32_t timer_get(Timer *timer);
+uint16_t timer_get(Timer *timer);
 
 #endif /* TIMER_H_ */

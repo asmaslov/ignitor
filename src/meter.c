@@ -28,9 +28,7 @@ static uint32_t rpm;
  ****************************************************************************/
 
 static uint8_t getTiming(uint32_t recordRpm) {
-    uint8_t i;
-
-    for (i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS - 1; i++) {
+    for (uint8_t i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS - 1; i++) {
         if (recordRpm < records[i+1].rpm)
         {
             return records[i].timing;
@@ -40,8 +38,6 @@ static uint8_t getTiming(uint32_t recordRpm) {
 }
 
 static void ready(uint32_t result) {
-    uint8_t i;
-
     if (result < (2 * UINT16_MAX)) {
         ticks[tickIndex] = result;
         if (captured) {
@@ -49,7 +45,7 @@ static void ready(uint32_t result) {
                 tickIndex = 0;
             }
             tickSum = 0;
-            for (i = 0; i < METER_TICKS; i++) {
+            for (uint8_t i = 0; i < METER_TICKS; i++) {
                 tickSum += ticks[i];
             }
             rpm = METER_FREQUENCY_HZ / tickSum / 60;
@@ -64,7 +60,7 @@ static void ready(uint32_t result) {
         }
     } else {
         tickIndex = 0;
-        for (i = 0; i < METER_TICKS; i++) {
+        for (uint8_t i = 0; i < METER_TICKS; i++) {
             ticks[i] = 0;
         }
         tickSum = 0;

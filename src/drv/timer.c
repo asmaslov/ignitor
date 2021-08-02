@@ -36,9 +36,9 @@ enum TIMER02_WGM {
     TIMER02_WGM_PWM_FAST_OCR = 7
 };
 
-static const uint32_t prescale01[] = { 1, 8, 64, 256, 1024 };
+static const uint16_t prescale01[] = { 1, 8, 64, 256, 1024 };
 static const uint8_t dv01 = 5;
-static const uint32_t prescale2[] = { 1, 8, 32, 64, 128, 256, 1024 };
+static const uint16_t prescale2[] = { 1, 8, 32, 64, 128, 256, 1024 };
 static const uint8_t dv2 = 7;
 
 #ifdef TCCR0A
@@ -60,28 +60,23 @@ static Timer *timer2;
  ****************************************************************************/
 
 static bool calc(const TimerIndex index, const uint32_t freq,
-                 const uint32_t *prescale, const uint8_t dm, uint8_t *dv,
-                 const uint32_t max, uint32_t *ocr, uint32_t *freqReal) {
-    uint32_t tmp;
+                 const uint16_t *prescale, const uint8_t dm, uint8_t *dv,
+                 uint16_t max, uint16_t *ocr) {
+    uint16_t tmp;
 
-    //NOTE: If "ocr" is NULL we suppose that no output compare is used so we
-    //      are looking only for proper divider to provide precise frequency
     *dv = 0;
     if (NULL == ocr) {
+        //NOTE: If "ocr" is NULL we suppose that no output compare is used so
+        //      we are looking only for proper divider for precise frequency
         ocr = &tmp;
+        max = 0;
     }
     do {
-        *ocr = F_CPU / (((ocr != &tmp) ? 2 : 1) * freq * prescale[(*dv)++]) - 1;
-        if (*ocr == 0) {
-            break;
-        }
-    } while (((&tmp == ocr) || (*ocr > max)) && (*dv < dm));
-    if ((((&tmp == ocr) && (*ocr != 0)) || ((ocr != &tmp) && (*ocr > max)))
-            && (*dv == dm)) {
+        *ocr = F_CPU / (((ocr != &tmp) ? 2 : 1) * prescale[(*dv)++] * freq) - 1;
+    } while ((*ocr > max) && (*dv < dm));
+    if ((*ocr > max) && (dm == *dv)) {
         return false;
     }
-    (*dv)--;
-    *freqReal = F_CPU / (((ocr != &tmp) ? 2 : 1) * prescale[*dv] * (1 + *ocr));
     return true;
 }
 
@@ -120,10 +115,9 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 ISR(TIMER1_CAPT_vect) {
-    uint32_t count;
-
     TCNT1 = 0;
     if (timer1) {
+        uint32_t count;
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
         {
             count = timer1->overflowCount;
@@ -172,22 +166,19 @@ ISR(TIMER2_OVF_vect) {
  * Public functions                                                         *
  ****************************************************************************/
 
-bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
+void timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
                         TimerHandler handler, TimerOutput out) {
     uint8_t wgm;
-    uint32_t ocr;
+    uint16_t ocr;
 
-    if (!timer || (freq > (F_CPU / 2))) {
-        return false;
-    }
     timer->index = index;
     timer->handler = handler;
     switch (index) {
 #ifdef TCCR0A
         case TIMER_0:
             if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      UINT8_MAX, &ocr, &timer->freqReal)) {
-                return false;
+                      UINT8_MAX, &ocr)) {
+                return;
             }
             OCR0A = (uint8_t)ocr;
             if (0 == ocr) {
@@ -205,10 +196,10 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR1A
         case TIMER_1:
             if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      UINT16_MAX, &ocr, &timer->freqReal)) {
-                return false;
+                      UINT16_MAX, &ocr)) {
+                return;
             }
-            OCR1A = (uint16_t)ocr;
+            OCR1A = ocr;
             if (0 == ocr) {
                 wgm = TIMER1_WGM_NORMAL;
                 TIMSK1 = (1 << TOIE1);
@@ -225,8 +216,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR2A
         case TIMER_2:
             if (!calc(timer->index, freq, prescale2, dv2, &timer->clockSelect,
-                      UINT8_MAX, &ocr, &timer->freqReal)) {
-                return false;
+                      UINT8_MAX, &ocr)) {
+                return;
             }
             OCR2A = (uint8_t)ocr;
             if (0 == ocr) {
@@ -241,43 +232,29 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
             timer2 = timer;
             break;
 #endif
-        default:
-            return false;
     }
-    return true;
 }
 
-bool timer_configPwm(Timer *timer, TimerIndex index, uint32_t freq,
+void timer_configPwm(Timer *timer, TimerIndex index, uint32_t freq,
                      TimerPwmMode mode) {
-    if (!timer || (freq > (F_CPU / 2))) {
-        return false;
-    }
     //TODO: configPwm
-    return false;
 }
 
-bool timer_configCounter(Timer *timer, TimerIndex index,
+void timer_configCounter(Timer *timer, TimerIndex index,
                          TimerResultHandler resultHandler) {
-    if (!timer) {
-        return false;
-    }
     //TODO: configCounter
-    return false;
 }
 
-bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
+void timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
                        TimerResultHandler resultHandler) {
-    if (!timer || (freq > F_CPU)) {
-        return false;
-    }
     timer->index = index;
     timer->resultHandler = resultHandler;
     switch (index) {
 #ifdef TCCR1A
         case TIMER_1:
             if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      UINT16_MAX, NULL, &timer->freqReal)) {
-                return false;
+                      0, NULL)) {
+                return;
             }
             TIMSK1 = (1 << ICIE1) | (1 << TOIE1);
             TCCR1A = 0;
@@ -287,9 +264,8 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
             break;
 #endif
         default:
-            return false;
+            break;
     }
-    return true;
 }
 
 void timer_run(Timer *timer) {
@@ -371,7 +347,7 @@ void timer_setPwmDuty(Timer *timer, uint8_t duty) {
     }
 }
 
-uint32_t timer_get(Timer *timer) {
+uint16_t timer_get(Timer *timer) {
     if (timer) {
         switch (timer->index) {
 #ifdef TCCR0A
@@ -387,8 +363,8 @@ uint32_t timer_get(Timer *timer) {
                 return TCNT2;
 #endif
             default:
-                return UINT32_MAX;
+                return UINT16_MAX;
         }
     }
-    return UINT32_MAX;
+    return UINT16_MAX;
 }

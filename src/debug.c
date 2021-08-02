@@ -21,12 +21,10 @@ static Usart usart0;
  ****************************************************************************/
 
 static void proceed(void) {
-    MeterTimingRecord record;
-    uint8_t i;
     uint8_t crc = 0;
 
     //TODO: use crc16.h
-    for (i = 0; i < DEBUG_CONTROL_PACKET_PART_CRC; i++) {
+    for (uint8_t i = 0; i < DEBUG_CONTROL_PACKET_PART_CRC; i++) {
         crc += controlPacket.bytes[i];
     }
     if (crc == controlPacket.crc) {
@@ -44,6 +42,7 @@ static void proceed(void) {
                 break;
             case DEBUG_PACKET_IDX_SET_TIMING:
                 replyPacket.idx = controlPacket.idx;
+                MeterTimingRecord record;
                 record.rpm = controlPacket.value16_1;
                 record.timing = controlPacket.value8_1;
                 if (meter_setTimingRecord(controlPacket.value8_0, record)) {
@@ -63,18 +62,10 @@ static void proceed(void) {
                 break;
         }
         replyPacket.crc = 0;
-        usart_putchar(&usart0, replyPacket.bytes[DEBUG_REPLY_PACKET_PART_HEADER]);
-        replyPacket.crc += replyPacket.bytes[DEBUG_REPLY_PACKET_PART_HEADER];
-        usart_putchar(&usart0, replyPacket.bytes[DEBUG_REPLY_PACKET_PART_IDX]);
-        replyPacket.crc += replyPacket.bytes[DEBUG_REPLY_PACKET_PART_IDX];
-        usart_putchar(&usart0, replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_0]);
-        replyPacket.crc += replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_0];
-        usart_putchar(&usart0, replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_1]);
-        replyPacket.crc += replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_1];
-        usart_putchar(&usart0, replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_2]);
-        replyPacket.crc += replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_2];
-        usart_putchar(&usart0, replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_3]);
-        replyPacket.crc += replyPacket.bytes[DEBUG_REPLY_PACKET_PART_VALUE_3];
+        for (uint8_t i = DEBUG_REPLY_PACKET_PART_HEADER; i < DEBUG_REPLY_PACKET_PART_CRC; i++) {
+            usart_putchar(&usart0, replyPacket.bytes[i]);
+            replyPacket.crc += replyPacket.bytes[i];
+        }
         usart_putchar(&usart0, replyPacket.crc);
     }
 }
@@ -91,39 +82,23 @@ void debug_init(void) {
 }
 
 void debug_work(void) {
-    uint8_t byte;
-
     if (usart0.rxBufferCount > 0) {
-        byte = usart_getchar(&usart0);
+        uint8_t byte = usart_getchar(&usart0);
+        controlPacket.bytes[receivedPartIndex] = byte;
         switch (receivedPartIndex) {
             case DEBUG_CONTROL_PACKET_PART_HEADER:
                 if (DEBUG_HEADER == byte) {
-                    controlPacket.hdr = byte;
-                    receivedPartIndex = DEBUG_CONTROL_PACKET_PART_IDX;
+                    receivedPartIndex++;
                 }
                 break;
             case DEBUG_CONTROL_PACKET_PART_IDX:
-                controlPacket.idx = byte;
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_0;
-                break;
             case DEBUG_CONTROL_PACKET_PART_VALUE_0:
-                controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_0] = byte;
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_1;
-                break;
             case DEBUG_CONTROL_PACKET_PART_VALUE_1:
-                controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_1] = byte;
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_2;
-                break;
             case DEBUG_CONTROL_PACKET_PART_VALUE_2:
-                controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_2] = byte;
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_VALUE_3;
-                break;
             case DEBUG_CONTROL_PACKET_PART_VALUE_3:
-                controlPacket.bytes[DEBUG_CONTROL_PACKET_PART_VALUE_3] = byte;
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_CRC;
+                receivedPartIndex++;
                 break;
             case DEBUG_CONTROL_PACKET_PART_CRC:
-                controlPacket.crc = byte;
                 proceed();
                 receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
                 break;
