@@ -2,14 +2,6 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>410</width>
-    <height>122</height>
-   </rect>
-  </property>
   <property name="windowTitle">
    <string>Ignitor</string>
   </property>
@@ -19,61 +11,77 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="2" column="1">
-     <widget class="QLabel" name="labelAngle">
-      <property name="text">
-       <string>Angle</string>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="2">
-     <widget class="QLineEdit" name="lineEditAngle"/>
-    </item>
-    <item row="2" column="4">
+    <item row="0" column="1">
      <widget class="QLabel" name="labelSpeed">
       <property name="text">
        <string>Speed</string>
       </property>
      </widget>
     </item>
-    <item row="2" column="5">
-     <widget class="QLineEdit" name="lineEditSpeed">
-      <property name="readOnly">
-       <bool>true</bool>
+    <item row="2" column="1" colspan="2">
+     <layout class="QVBoxLayout" name="verticalLayoutData">
+      <property name="spacing">
+       <number>0</number>
       </property>
-     </widget>
+     </layout>
     </item>
     <item row="1" column="1" colspan="2">
-     <widget class="QLabel" name="labelParameters">
-      <property name="text">
-       <string>Parameters</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
+     <widget class="QWidget" name="widgetHeader" native="true">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="labelRpm">
+         <property name="text">
+          <string>Rpm</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelTiming">
+         <property name="text">
+          <string>Timing</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelShift">
+         <property name="text">
+          <string>Shift</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelValue">
+         <property name="text">
+          <string>Value</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
-    <item row="1" column="5">
-     <widget class="QLabel" name="labelStatuses">
-      <property name="text">
-       <string>Statuses</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="3">
+    <item row="3" column="1" colspan="2">
      <widget class="QPushButton" name="pushButtonUpdate">
       <property name="text">
        <string>Update</string>
       </property>
      </widget>
     </item>
-    <item row="1" column="3">
-     <widget class="QCheckBox" name="checkBoxLed">
-      <property name="text">
-       <string>Led</string>
+    <item row="0" column="2">
+     <widget class="QLineEdit" name="lineEditSpeed">
+      <property name="readOnly">
+       <bool>true</bool>
       </property>
      </widget>
     </item>
@@ -84,7 +92,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>410</width>
+     <width>209</width>
      <height>25</height>
     </rect>
    </property>

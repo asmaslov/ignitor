@@ -73,6 +73,8 @@ ISR(USART0_RX_vect) {
                 usart0->rxBufferCount++;
             }
         }
+    } else {
+        (void)UDR0;
     }
 }
 
@@ -109,6 +111,8 @@ ISR(USART1_RX_vect) {
                 usart1->rxBufferCount++;
             }
         }
+    } else {
+        (void)UDR1;
     }
 }
 

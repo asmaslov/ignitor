@@ -5,7 +5,12 @@ import serial, time
 import serial.tools.list_ports
 from ui_ignitor import Ui_MainWindow
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QWidget, QMessageBox, QLineEdit, QHBoxLayout
 from DEBUG import *
+
+UART_DEBUG = False
+
+RECORD_TOTAL_SLOTS = 11
 
 def isint(value):
     try:
@@ -17,16 +22,19 @@ def isint(value):
 class MainWindow(QtWidgets.QMainWindow):
     ui = Ui_MainWindow()
     ser = serial.Serial()
+    timings = []
+
     timerPortRead = QtCore.QTimer()
-    timerPortReadTimeoutMs = 50
+    timerPortReadTimeoutMs = 5
     timerPortRequest = QtCore.QTimer()
-    requestIdx = DEBUG_PACKET_IDX_GET_TIMING
-    timerportWriteTimeoutMs = 100
+    requestIdx = DEBUG_PACKET_IDX_GET_RECORD
+    recordIdx = 0
+    timerportWriteTimeoutMs = 10
     eventRequestComplete = asyncio.Event()
     eventWriteComplete = asyncio.Event()
 
     def exitApprove(self):
-        return QtWidgets.QMessageBox.Yes == QtWidgets.QMessageBox.question(self, 'Exit', 'Are you sure?', QtWidgets.QMessageBox.Yes| QtWidgets.QMessageBox.No)
+        return QMessageBox.Yes == QMessageBox.question(self, 'Exit', 'Are you sure?', QMessageBox.Yes| QMessageBox.No)
 
     def setPort(self, name):
         if self.ser.isOpen():
@@ -50,7 +58,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def portRead(self):
         if self.ser.isOpen() and self.ser.inWaiting() >= DEBUG_REPLY_PACKET_LEN:
             data = self.ser.read(DEBUG_REPLY_PACKET_LEN)
-            #print('-> ' + ' '.join('0x{:02X}'.format(x) for x in data))
+            if UART_DEBUG:
+                print('-> ' + ' '.join('0x{:02X}'.format(x) for x in data))
             crc = 0
             for i in range (0, len(data) - 1):
                 crc = crc + data[i]
@@ -61,9 +70,12 @@ class MainWindow(QtWidgets.QMainWindow):
                         if DEBUG_PACKET_IDX_GET_RPM == data[DEBUG_REPLY_PACKET_PART_IDX]:
                             speed = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_CRC], 'little')
                             self.ui.lineEditSpeed.setText(str(speed))
-                        elif DEBUG_PACKET_IDX_GET_TIMING == data[DEBUG_REPLY_PACKET_PART_IDX]:
-                            angle = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_CRC], 'little')
-                            self.ui.lineEditAngle.setText(str(angle))
+                        elif DEBUG_PACKET_IDX_GET_RECORD == data[DEBUG_REPLY_PACKET_PART_IDX]:
+                            idx = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_VALUE_1], 'little')
+                            rpm = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_2:DEBUG_REPLY_PACKET_PART_CRC], 'little')
+                            value = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_1:DEBUG_REPLY_PACKET_PART_VALUE_2], 'little')
+                            self.timings[idx]['rpm'].setText(str(rpm))
+                            self.timings[idx]['value'].setText(str(value))
                     else:
                         self.eventWriteComplete.set()
                         if DEBUG_PACKET_IDX_SET_TIMING == data[DEBUG_REPLY_PACKET_PART_IDX]:
@@ -80,21 +92,31 @@ class MainWindow(QtWidgets.QMainWindow):
                 packet = bytearray()
                 packet.append(DEBUG_HEADER)
                 packet.append(self.requestIdx)
-                if (DEBUG_PACKET_IDX_GET_TIMING == self.requestIdx):
-                    self.requestIdx = DEBUG_PACKET_IDX_GET_RPM
-                    idx = 0
-                    #TODO: Request all timings
-                    packet.append(idx)
-                else:
+                if DEBUG_PACKET_IDX_GET_RECORD == self.requestIdx:
+                    packet.append(self.recordIdx)
                     packet.append(0)
-                packet.append(0)
-                packet.append(0)
-                packet.append(0)
+                    packet.append(0)
+                    packet.append(0)
+                    self.recordIdx = self.recordIdx + 1
+                    if RECORD_TOTAL_SLOTS == self.recordIdx:
+                        self.recordIdx = 0
+                        self.requestIdx = DEBUG_PACKET_IDX_GET_RPM                
+                elif DEBUG_PACKET_IDX_GET_RPM == self.requestIdx:
+                    packet.append(0)                    
+                    packet.append(0)
+                    packet.append(0)
+                    packet.append(0)
+                else:
+                    packet.append(0)                    
+                    packet.append(0)
+                    packet.append(0)
+                    packet.append(0)
                 crc = 0
                 for one in packet:
                     crc = crc + one
                 packet.append(crc & 0xFF)
-                #print('<- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
+                if UART_DEBUG:
+                    print('<- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
                 self.ser.write(packet)
             else:
                 self.ui.statusbar.showMessage('Port not open')
@@ -116,7 +138,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 for one in packet:
                     crc = crc + one
                 packet.append(crc & 0xFF)
-                #print('<- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
+                if UART_DEBUG:
+                    print('<- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
                 self.ser.write(packet)
             else:
                 self.ui.statusbar.showMessage('Port not open')
@@ -135,6 +158,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.signalMapper.setMapping(node, port.device)
             group.addAction(node)
             self.ui.menuPort.addAction(node)
+        for i in range(0, RECORD_TOTAL_SLOTS):
+            self.timings.append({'rpm' : QLineEdit(),
+                              'timing' : QLineEdit(),
+                              'shift' : QLineEdit(),
+                              'value' : QLineEdit()})
+            layout = QHBoxLayout()
+            layout.addWidget(self.timings[-1]['rpm'])
+            layout.addWidget(self.timings[-1]['timing'])
+            layout.addWidget(self.timings[-1]['shift'])
+            layout.addWidget(self.timings[-1]['value'])
+            widget = QWidget()
+            widget.setLayout(layout)
+            self.ui.verticalLayoutData.addWidget(widget)
         self.timerPortRead.timeout.connect(self.portRead)
         self.timerPortRequest.timeout.connect(self.portRequest)
 
@@ -147,7 +183,6 @@ class MainWindow(QtWidgets.QMainWindow):
             event.ignore()
 
     def on_pushButtonUpdate_released(self):
-        #TODO: Write all timings
         if isint(self.ui.lineEditAngle.text()):
             angle = abs(int(self.ui.lineEditAngle.text()))
             self.portWrite(DEBUG_PACKET_IDX_SET_TIMING, angle)

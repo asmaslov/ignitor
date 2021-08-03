@@ -74,15 +74,13 @@ typedef union {
     };
 } DebugReplyPacket;
 
-#define DEBUG_PACKET_IDX_UNDEFINED   0x00
 #define DEBUG_PACKET_IDX_TYPE_SHFT   7
 #define DEBUG_PACKET_IDX_TYPE_MASK   (1 << DEBUG_PACKET_IDX_TYPE_SHFT)
 #define DEBUG_PACKET_IDX_TYPE_GET    0
 #define DEBUG_PACKET_IDX_TYPE_SET    1
 #define DEBUG_PACKET_IDX_GET_RPM     0x01
-#define DEBUG_PACKET_IDX_GET_TIMING  0x21
-#define DEBUG_PACKET_IDX_SET_TIMING  0xA1
-#define DEBUG_PACKET_IDX_SET_LED     0xAF
+#define DEBUG_PACKET_IDX_GET_RECORD  0x21
+#define DEBUG_PACKET_IDX_SET_RECORD  0xA1
 
 void debug_init(void);
 void debug_work(void);

@@ -9,8 +9,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-volatile bool run;
-
 static Timer timer2;
 
 static void sparks_init(void) {
@@ -18,38 +16,37 @@ static void sparks_init(void) {
     PORTC |= (1 << PC2) | (1 << PC3);
 }
 
-static void sparks_ignite(MeterSpark spark) {
-    switch (spark) {
-        case METER_SPARK_0:
-
-            break;
-        case METER_SPARK_1:
-
-            break;
-        default:
-            break;
+static void sparks_ignite(MeterSpark spark, bool on) {
+    if (METER_SPARK_0 == spark) {
+        if (on) {
+            PORTC &= ~(1 << PC2);
+        } else {
+            PORTC |= (1 << PC2);
+        }
+    } else if (METER_SPARK_1 == spark) {
+        if (on) {
+            PORTC &= ~(1 << PC3);
+        } else {
+            PORTC |= (1 << PC3);
+        }
     }
-
-    //TODO: Ignite and setup timer0 for spark die depending on speed
 }
 
 static void watchdog_init(void)
 {
     DDRD |= (1 << DDD3);
     timer_configSimple(&timer2, TIMER_2, WD_RESET_FREQ_HZ, NULL, TIMER_OUTPUT_TOGGLE_B);
-    timer_run(&timer2);
+    timer_run(&timer2, 0);
 }
 
 int main(void)
 {
-    ATOMIC_BLOCK(ATOMIC_FORCEON) {
-        run = true;
-    }
+    sei();
     debug_init();
     watchdog_init();
     sparks_init();
     meter_init(sparks_ignite);
-    while (run) {
+    while (true) {
         debug_work();
     }
     return 0;

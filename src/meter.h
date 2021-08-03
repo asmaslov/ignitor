@@ -15,8 +15,9 @@
 #define METER_TIMING_OVER_HIGH  30
 
 #define METER_FREQUENCY_HZ  (F_CPU / 64)
-
+#define METER_SENSIBLE_VALUE_MAX  (2 * UINT16_MAX)
 #define METER_TICKS  4
+#define METER_SPARK_PWM_DUTY  10
 
 typedef enum METER_SPARK {
     METER_SPARK_0 = 0,
@@ -25,14 +26,15 @@ typedef enum METER_SPARK {
 
 typedef struct _MeterTimingRecord {
     uint16_t rpm;
-    uint8_t timing;
+    uint8_t value;
 } MeterTimingRecord;
 
-typedef void (*MeterSparkHandler)(MeterSpark spark);
+typedef void (*MeterSparkHandler)(MeterSpark spark, bool on);
 
 void meter_init(MeterSparkHandler sparkHandler);
-uint32_t meter_getRpm(void);
-MeterTimingRecord getTimingRecord(uint8_t slot);
-bool meter_setTimingRecord(uint8_t slot, MeterTimingRecord record);
+uint16_t meter_getRpm(void);
+MeterTimingRecord *getTimingRecord(uint8_t slot);
+void meter_setTimingRecord(uint8_t slot, const uint16_t rpm,
+                           const uint8_t value);
 
 #endif /* METER_H_ */

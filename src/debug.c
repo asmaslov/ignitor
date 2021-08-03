@@ -2,6 +2,7 @@
 #include "usart.h"
 #include "meter.h"
 #include <avr/io.h>
+#include <util/crc16.h>
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
@@ -9,6 +10,7 @@
 
 static uint8_t receivedPartIndex;
 static DebugControlPacket controlPacket;
+static MeterTimingRecord *record;
 static DebugReplyPacket replyPacket;
 static Usart usart0;
 
@@ -28,38 +30,23 @@ static void proceed(void) {
         crc += controlPacket.bytes[i];
     }
     if (crc == controlPacket.crc) {
-        replyPacket.hdr = DEBUG_HEADER;
+        replyPacket.idx = controlPacket.idx;
         switch (controlPacket.idx) {
             case DEBUG_PACKET_IDX_GET_RPM:
-                replyPacket.idx = controlPacket.idx;
-                replyPacket.value32 = meter_getRpm();
+                replyPacket.value16_0 = meter_getRpm();
                 break;
-            case DEBUG_PACKET_IDX_GET_TIMING:
-                replyPacket.idx = controlPacket.idx;
+            case DEBUG_PACKET_IDX_GET_RECORD:
                 replyPacket.value8_0 = controlPacket.value8_0;
-                replyPacket.value8_1 = getTimingRecord(controlPacket.value8_0).timing;
-                replyPacket.value16_1 = getTimingRecord(controlPacket.value8_0).rpm;
+                record = getTimingRecord(controlPacket.value8_0);
+                replyPacket.value16_1 = record->rpm;
+                replyPacket.value8_1 = record->value;
                 break;
-            case DEBUG_PACKET_IDX_SET_TIMING:
-                replyPacket.idx = controlPacket.idx;
-                MeterTimingRecord record;
-                record.rpm = controlPacket.value16_1;
-                record.timing = controlPacket.value8_1;
-                if (meter_setTimingRecord(controlPacket.value8_0, record)) {
-                    replyPacket.value32 = controlPacket.value32;
-                } else {
-                    replyPacket.value32 = UINT32_MAX;
-                }
-                break;
-            case DEBUG_PACKET_IDX_SET_LED:
-                replyPacket.idx = controlPacket.idx;
-                debug_led(controlPacket.value32);
+            case DEBUG_PACKET_IDX_SET_RECORD:
+                meter_setTimingRecord(controlPacket.value8_0, controlPacket.value8_2, controlPacket.value16_1);
                 replyPacket.value32 = controlPacket.value32;
                 break;
             default:
-                replyPacket.idx = DEBUG_PACKET_IDX_UNDEFINED;
-                replyPacket.value32 = UINT32_MAX;
-                break;
+                return;
         }
         replyPacket.crc = 0;
         for (uint8_t i = DEBUG_REPLY_PACKET_PART_HEADER; i < DEBUG_REPLY_PACKET_PART_CRC; i++) {
@@ -78,6 +65,7 @@ void debug_init(void) {
     DDRD |= (1 << DDD4);
     debug_led(false);
     receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
+    replyPacket.hdr = DEBUG_HEADER;
     usart_init(&usart0, USART_0, DEBUG_BAUDRATE);
 }
 
@@ -101,8 +89,6 @@ void debug_work(void) {
             case DEBUG_CONTROL_PACKET_PART_CRC:
                 proceed();
                 receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
-                break;
-            default:
                 break;
         }
     }

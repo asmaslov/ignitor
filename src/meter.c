@@ -1,23 +1,25 @@
 #include "meter.h"
 #include "timer.h"
 #include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <stddef.h>
-#include <assert.h>
 
 /****************************************************************************
  * Private types/enumerations/variables                                     *
  ****************************************************************************/
 
-//TODO: Keep timings in eeprom
-static MeterTimingRecord records[METER_TIMING_RECORD_TOTAL_SLOTS];
+EEMEM MeterTimingRecord recordsEeprom[METER_TIMING_RECORD_TOTAL_SLOTS];
 
+static MeterTimingRecord records[METER_TIMING_RECORD_TOTAL_SLOTS];
+static MeterTimingRecord undefined = { .rpm = UINT16_MAX, .value = UINT8_MAX };
+static MeterSpark nextSpark;
 static MeterSparkHandler handler;
-static Timer timer1;
-static uint8_t tickIndex;
-static uint8_t ticks[METER_TICKS];
-static uint32_t tickSum;
+static Timer timer0, timer1;
+static uint8_t tickIndex, index2, index4;
+static uint32_t ticks[METER_TICKS];
 static bool captured;
-static uint32_t rpm;
+static uint16_t rpm;
 
 /****************************************************************************
  * Public types/enumerations/variables                                      *
@@ -27,45 +29,69 @@ static uint32_t rpm;
  * Private functions                                                        *
  ****************************************************************************/
 
-static uint8_t getTiming(uint32_t recordRpm) {
-    for (uint8_t i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS - 1; i++) {
-        if (recordRpm < records[i+1].rpm)
-        {
-            return records[i].timing;
+static int8_t getValue(uint32_t recordRpm) {
+    for (uint8_t i = 0; i <= METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
+        if (recordRpm < records[i + 1].rpm) {
+            return records[i].value;
         }
     }
     return UINT8_MAX;
 }
 
+static void pwm(TimerEvent event) {
+    if ((TIMER_EVENT_COMPARE_A == event) || (TIMER_EVENT_OVERFLOW == event)) {
+        handler(nextSpark, true);
+    } else {
+        handler(nextSpark, false);
+        timer_stop(&timer0);
+    }
+}
+
 static void ready(uint32_t result) {
-    if (result < (2 * UINT16_MAX)) {
+    if (result < METER_SENSIBLE_VALUE_MAX) {
         ticks[tickIndex] = result;
         if (captured) {
-            if (METER_TICKS == ++tickIndex) {
-                tickIndex = 0;
-            }
-            tickSum = 0;
+            uint32_t tickSum = 0;
             for (uint8_t i = 0; i < METER_TICKS; i++) {
                 tickSum += ticks[i];
             }
-            rpm = METER_FREQUENCY_HZ / tickSum / 60;
-            //TODO: If first or third cycle run timer0 to call
-            //      handler(METER_SPARK_0/1) with delay based on rpm
+            uint32_t rps = METER_FREQUENCY_HZ / tickSum;
+            if ((tickIndex == index2) || (tickIndex == index4)) {
+                nextSpark =
+                        (tickIndex == index2) ? METER_SPARK_1 : METER_SPARK_0;
+                if (timer_configPwm(&timer0, TIMER_0, rps * METER_TICKS,
+                                    TIMER_PWM_MODE_FAST,
+                                    METER_SPARK_PWM_DUTY,
+                                    pwm, TIMER_OUTPUT_NONE)) {
+                    timer_run(&timer0, getValue(rps));
+                }
+            }
+            rpm = rps / 60;
+            if (METER_TICKS == ++tickIndex) {
+                tickIndex = 0;
+            }
         } else {
             if (METER_TICKS == ++tickIndex) {
                 tickIndex = 0;
-                //TODO: Find first and third cycle
+                uint32_t min = METER_SENSIBLE_VALUE_MAX;
+                for (uint8_t i = 0; i < METER_TICKS; i++) {
+                    if (ticks[i] < min) {
+                        min = ticks[i];
+                        index2 = i;
+                        index4 = (i + 2) % METER_TICKS;
+                    }
+                }
                 captured = true;
             }
         }
     } else {
         tickIndex = 0;
-        for (uint8_t i = 0; i < METER_TICKS; i++) {
-            ticks[i] = 0;
-        }
-        tickSum = 0;
         captured = false;
     }
+}
+
+ISR(INT0_vect) {
+    //TODO: Handle NEU_SIG
 }
 
 /****************************************************************************
@@ -76,32 +102,39 @@ void meter_init(MeterSparkHandler sparkHandler) {
     handler = sparkHandler;
     DDRD |= (1 << DDD5) | (1 << DDD6);
     PORTD |= (1 << PD5) | (1 << PD6);
-    timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_HZ, ready);
-    timer_run(&timer1);
-    //TODO: Setup NEU_SIG IRQ
+    if (timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_HZ, ready)) {
+        timer_run(&timer1, 0);
+    }
+    for (uint8_t i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
+
+    }
+    eeprom_read_block(
+            records, recordsEeprom,
+            sizeof(MeterTimingRecord) * METER_TIMING_RECORD_TOTAL_SLOTS);
+    EICRA = (0 << ISC11) | (0 << ISC10) | (1 << ISC01) | (0 << ISC00);
+    EIMSK = (0 << INT1) | (1 << INT0);
 }
 
-uint32_t meter_getRpm(void) {
+uint16_t meter_getRpm(void) {
     if (captured) {
         return rpm;
     }
-    return UINT32_MAX;
+    return 0;
 }
 
-MeterTimingRecord getTimingRecord(uint8_t slot) {
-    MeterTimingRecord error = {.rpm = UINT16_MAX, .timing = UINT8_MAX};
-
+MeterTimingRecord *getTimingRecord(uint8_t slot) {
     if (slot < METER_TIMING_RECORD_TOTAL_SLOTS) {
-        return records[slot];
+        return &records[slot];
     }
-    return error;
+    return &undefined;
 }
 
-bool meter_setTimingRecord(uint8_t slot, MeterTimingRecord record)
-{
+void meter_setTimingRecord(uint8_t slot, const uint16_t rpm,
+                           const uint8_t value) {
     if (slot < METER_TIMING_RECORD_TOTAL_SLOTS) {
-        records[slot] = record;
-        return true;
+        records[slot].rpm = rpm;
+        records[slot].value = value;
+        eeprom_update_block(records + slot, recordsEeprom + slot,
+                            sizeof(MeterTimingRecord));
     }
-    return false;
 }
