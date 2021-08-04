@@ -7,7 +7,7 @@
 *.map
 ui_*.py
 *_rc.py
-DEBUG.py
+h2py_*.py
 __pycache__
 *.spec
 build

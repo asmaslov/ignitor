@@ -10,6 +10,7 @@ DIST_DIR = dist
 
 SRCS_C = $(shell find ${SRC_DIR} -type f -name *.c)
 INCS_C = $(shell find ${SRC_DIR} -type f -name *.h)
+H2PY_PY = $(patsubst %.h, h2py_%.py, $(notdir ${INCS_C}))
 INCS_DIRS = $(addprefix -I, $(dir ${INCS_C}))
 OBJS_DIRS = $(subst ${SRC_DIR}, ${BUILD_DIR}, $(dir ${SRCS_C}))
 OBJS = $(subst ${SRC_DIR}, ${BUILD_DIR}, $(patsubst %.c, %.o, ${SRCS_C}))
@@ -25,7 +26,7 @@ LDFLAGS = -Wl,--gc-sections -Wl,-Map,${PRJ}.map
 
 $(foreach S, $(SRCS_C), \
 	$(foreach O, $(filter %$(basename $(notdir $S)).o, $(OBJS)), \
-		$(eval $O: $S) \
+		$(eval $O: $S ${INCS_C}) \
 	) \
 )
 
@@ -43,14 +44,20 @@ ui_${PRJ}.py: ${PRJ}.ui
 
 ${PRJ}_rc.py: ${PRJ}.qrc
 	pyrcc5 $< -o $@
-	
-DEBUG.py: ${SRC_DIR}/debug.h
+
+$(foreach H, $(INCS_C), \
+	$(foreach P, $(filter %h2py_$(basename $(notdir $H)).py, $(H2PY_PY)), \
+		$(eval $P: $H) \
+	) \
+)
+
+h2py_%.py:
 	python h2py.py $<
 
-all: ${PRJ}.hex ui_${PRJ}.py ${PRJ}_rc.py DEBUG.py
+all: ${PRJ}.hex ui_${PRJ}.py ${PRJ}_rc.py ${H2PY_PY}
 	${SIZE} --format=avr --mcu=${MCU} ${BUILD_DIR}/${PRJ}.elf
 
-app: ${PRJ}.py ${PRJ}_rc.py DEBUG.py
+app: ${PRJ}.py ${PRJ}_rc.py ${H2PY_PY}
 	pyinstaller --hidden-import ui_ignitor --onefile --windowed --icon=${PRJ}.ico ${PRJ}.py
 
 clean:
@@ -62,5 +69,5 @@ clean:
 	${RM}	${PRJ}.map
 	${RM}	ui_${PRJ}.py
 	${RM}	${PRJ}_rc.py
-	${RM}	DEBUG.py
+	${RM}	${H2PY_PY}
 	${RM}	${DIST_DIR}

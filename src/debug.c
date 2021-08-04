@@ -32,18 +32,20 @@ static void proceed(void) {
     if (crc == controlPacket.crc) {
         replyPacket.idx = controlPacket.idx;
         switch (controlPacket.idx) {
-            case DEBUG_PACKET_IDX_GET_RPM:
+            case DEBUG_PACKET_CMD_GET_RPM:
                 replyPacket.value16_0 = meter_getRpm();
                 break;
-            case DEBUG_PACKET_IDX_GET_RECORD:
+            case DEBUG_PACKET_CMD_GET_RECORD:
                 replyPacket.value8_0 = controlPacket.value8_0;
                 record = getTimingRecord(controlPacket.value8_0);
                 replyPacket.value16_1 = record->rpm;
                 replyPacket.value8_1 = record->value;
                 break;
-            case DEBUG_PACKET_IDX_SET_RECORD:
-                meter_setTimingRecord(controlPacket.value8_0, controlPacket.value8_2, controlPacket.value16_1);
-                replyPacket.value32 = controlPacket.value32;
+            case DEBUG_PACKET_CMD_SET_RECORD:
+                replyPacket.value8_0 = controlPacket.value8_0;
+                meter_setTimingRecord(controlPacket.value8_0, controlPacket.value16_1, controlPacket.value8_1);
+                replyPacket.value16_1 = controlPacket.value16_1;
+                replyPacket.value8_1 = controlPacket.value8_1;
                 break;
             default:
                 return;
@@ -79,7 +81,7 @@ void debug_work(void) {
                     receivedPartIndex++;
                 }
                 break;
-            case DEBUG_CONTROL_PACKET_PART_IDX:
+            case DEBUG_CONTROL_PACKET_PART_CMD:
             case DEBUG_CONTROL_PACKET_PART_VALUE_0:
             case DEBUG_CONTROL_PACKET_PART_VALUE_1:
             case DEBUG_CONTROL_PACKET_PART_VALUE_2:

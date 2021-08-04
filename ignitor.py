@@ -1,16 +1,15 @@
-import sys
-import threading
-import asyncio
-import serial, time
-import serial.tools.list_ports
+import sys, threading, asyncio, time, serial, serial.tools.list_ports
+from datetime import datetime
+from functools import partial
+from struct import pack
 from ui_ignitor import Ui_MainWindow
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QWidget, QMessageBox, QLineEdit, QHBoxLayout
-from DEBUG import *
+from PyQt5.QtWidgets import QWidget, QMessageBox, QSpinBox, QLineEdit, QHBoxLayout
+from h2py_debug import *
+from h2py_meter import *
+from wx import *
 
-UART_DEBUG = False
-
-RECORD_TOTAL_SLOTS = 11
+UART_DEBUG = True
 
 def isint(value):
     try:
@@ -23,15 +22,16 @@ class MainWindow(QtWidgets.QMainWindow):
     ui = Ui_MainWindow()
     ser = serial.Serial()
     timings = []
-
-    timerPortRead = QtCore.QTimer()
-    timerPortReadTimeoutMs = 5
-    timerPortRequest = QtCore.QTimer()
-    requestIdx = DEBUG_PACKET_IDX_GET_RECORD
+    timerPortSend = QtCore.QTimer()
+    timerPortSendPeriodMs = 100
+    timerPortAutoRead = QtCore.QTimer()
+    timerPortAutoReadPeriodMs = 20
+    timerPortReply = QtCore.QTimer()
+    timerPortReplyTimeoutMs = 500
+    cmd = DEBUG_PACKET_CMD_GET_RECORD
     recordIdx = 0
-    timerportWriteTimeoutMs = 10
-    eventRequestComplete = asyncio.Event()
-    eventWriteComplete = asyncio.Event()
+    requestlock = threading.Lock()
+    eventTransmitComplete = asyncio.Event()
 
     def exitApprove(self):
         return QMessageBox.Yes == QMessageBox.question(self, 'Exit', 'Are you sure?', QMessageBox.Yes| QMessageBox.No)
@@ -39,8 +39,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def setPort(self, name):
         if self.ser.isOpen():
             self.ser.close()
-        self.eventRequestComplete.set()
-        self.eventWriteComplete.set()
+        self.timerPortSend.stop()
+        self.timerPortAutoRead.stop()
+        self.timerPortReply.stop()
+        self.eventTransmitComplete.set()
+        with self.requestlock:
+            self.recordIdx = 0
+            self.cmd = DEBUG_PACKET_CMD_GET_RECORD
         self.ser.port = str(name)
         self.ser.baudrate = DEBUG_BAUDRATE
         self.ser.parity = serial.PARITY_NONE
@@ -51,100 +56,103 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.ui.statusbar.showMessage('Port ' + name + ' not available')
         if self.ser.isOpen():
-            self.timerPortRead.start(self.timerPortReadTimeoutMs)
-            self.timerPortRequest.start(self.timerportWriteTimeoutMs)
+            self.timerPortSend.start(self.timerPortSendPeriodMs)
+            self.timerPortAutoRead.start(self.timerPortAutoReadPeriodMs)
             self.ui.statusbar.showMessage('Connected to ' + name)
 
     def portRead(self):
-        if self.ser.isOpen() and self.ser.inWaiting() >= DEBUG_REPLY_PACKET_LEN:
-            data = self.ser.read(DEBUG_REPLY_PACKET_LEN)
-            if UART_DEBUG:
-                print('-> ' + ' '.join('0x{:02X}'.format(x) for x in data))
-            crc = 0
-            for i in range (0, len(data) - 1):
-                crc = crc + data[i]
-            if (crc & 0xFF) == data[DEBUG_REPLY_PACKET_PART_CRC]:
-                if DEBUG_HEADER == data[DEBUG_REPLY_PACKET_PART_HEADER]:
-                    if DEBUG_PACKET_IDX_TYPE_GET == (data[DEBUG_REPLY_PACKET_PART_IDX] & DEBUG_PACKET_IDX_TYPE_MASK) >> DEBUG_PACKET_IDX_TYPE_SHFT:
-                        self.eventRequestComplete.set()
-                        if DEBUG_PACKET_IDX_GET_RPM == data[DEBUG_REPLY_PACKET_PART_IDX]:
-                            speed = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_CRC], 'little')
-                            self.ui.lineEditSpeed.setText(str(speed))
-                        elif DEBUG_PACKET_IDX_GET_RECORD == data[DEBUG_REPLY_PACKET_PART_IDX]:
-                            idx = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_VALUE_1], 'little')
-                            rpm = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_2:DEBUG_REPLY_PACKET_PART_CRC], 'little')
-                            value = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_1:DEBUG_REPLY_PACKET_PART_VALUE_2], 'little')
-                            self.timings[idx]['rpm'].setText(str(rpm))
-                            self.timings[idx]['value'].setText(str(value))
-                    else:
-                        self.eventWriteComplete.set()
-                        if DEBUG_PACKET_IDX_SET_TIMING == data[DEBUG_REPLY_PACKET_PART_IDX]:
-                            self.ui.statusbar.showMessage('Acknowledged angle')
-                        elif DEBUG_PACKET_IDX_SET_LED == data[DEBUG_REPLY_PACKET_PART_IDX]:
-                            self.ui.statusbar.showMessage('Acknowledged led')
+        if self.ser.isOpen():
+            if self.ser.inWaiting() >= DEBUG_REPLY_PACKET_LEN:
+                self.timerPortReply.stop()
+                data = bytearray(self.ser.read())
+                if DEBUG_HEADER == data[DEBUG_REPLY_PACKET_PART_HEADER]:                
+                    data.extend(bytearray(self.ser.read(DEBUG_REPLY_PACKET_LEN - 1)))
+                    if UART_DEBUG:
+                        print(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' -> ' + ' '.join('0x{:02X}'.format(x) for x in data))
+                    crc = 0
+                    for i in range (0, len(data) - 1):
+                        crc = crc + data[i]
+                    if (crc & 0xFF) == data[DEBUG_REPLY_PACKET_PART_CRC]:
+                        if DEBUG_PACKET_CMD_TYPE_GET == (data[DEBUG_REPLY_PACKET_PART_CMD] & DEBUG_PACKET_CMD_TYPE_MASK) >> DEBUG_PACKET_CMD_TYPE_SHFT:
+                            if DEBUG_PACKET_CMD_GET_RPM == data[DEBUG_REPLY_PACKET_PART_CMD]:
+                                rpm = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_VALUE_2], 'little')
+                                self.ui.lineEditSpeedReal.setText(str(rpm))
+                            elif DEBUG_PACKET_CMD_GET_RECORD == data[DEBUG_REPLY_PACKET_PART_CMD]:
+                                idx = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_VALUE_1], 'little')
+                                rpm = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_2:DEBUG_REPLY_PACKET_PART_CRC], 'little')
+                                value = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_1:DEBUG_REPLY_PACKET_PART_VALUE_2], 'little')
+                                self.timings[idx]['rpm'].setValue(rpm)
+                                self.timings[idx]['value'].setText(str(value))
+                                with self.requestlock:
+                                    self.recordIdx = self.recordIdx + 1
+                                    if METER_TIMING_RECORD_TOTAL_SLOTS == self.recordIdx:
+                                        self.recordIdx = 0
+                                        self.cmd = DEBUG_PACKET_CMD_GET_RPM
                         else:
-                            self.ui.statusbar.showMessage('Unknown')
-
-    def portRequest(self):
-        if self.eventRequestComplete.is_set() or self.eventWriteComplete.is_set():
-            if self.ser.isOpen():
-                self.eventRequestComplete.clear()
-                packet = bytearray()
-                packet.append(DEBUG_HEADER)
-                packet.append(self.requestIdx)
-                if DEBUG_PACKET_IDX_GET_RECORD == self.requestIdx:
-                    packet.append(self.recordIdx)
-                    packet.append(0)
-                    packet.append(0)
-                    packet.append(0)
-                    self.recordIdx = self.recordIdx + 1
-                    if RECORD_TOTAL_SLOTS == self.recordIdx:
-                        self.recordIdx = 0
-                        self.requestIdx = DEBUG_PACKET_IDX_GET_RPM                
-                elif DEBUG_PACKET_IDX_GET_RPM == self.requestIdx:
-                    packet.append(0)                    
-                    packet.append(0)
-                    packet.append(0)
-                    packet.append(0)
+                            if DEBUG_PACKET_CMD_SET_RECORD == data[DEBUG_REPLY_PACKET_PART_CMD]:
+                                idx = int.from_bytes(data[DEBUG_REPLY_PACKET_PART_VALUE_0:DEBUG_REPLY_PACKET_PART_VALUE_1], 'little')
+                                with self.requestlock:
+                                    self.recordIdx = idx + 1
+                                    if METER_TIMING_RECORD_TOTAL_SLOTS == self.recordIdx:
+                                        self.recordIdx = 0
+                                        self.cmd = DEBUG_PACKET_CMD_GET_RECORD
+                                        self.ui.statusbar.showMessage('Acknowledged timings')
+                            else:
+                                self.ui.statusbar.showMessage('Unknown')
+                        self.eventTransmitComplete.set()
+                    else:
+                        self.timerPortReply.start(self.timerPortReplyTimeoutMs)
                 else:
-                    packet.append(0)                    
-                    packet.append(0)
-                    packet.append(0)
-                    packet.append(0)
-                crc = 0
-                for one in packet:
-                    crc = crc + one
-                packet.append(crc & 0xFF)
-                if UART_DEBUG:
-                    print('<- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
-                self.ser.write(packet)
-            else:
-                self.ui.statusbar.showMessage('Port not open')
-        else:
-            self.ui.statusbar.showMessage('Port awaiting answer')
+                    self.timerPortReply.start(self.timerPortReplyTimeoutMs)
 
-    def portWrite(self, idx, data):
-        if self.eventWriteComplete.is_set():
-            self.eventRequestComplete.wait()
-            if self.ser.isOpen():
-                self.eventWriteComplete.clear()
+    def portReplyTimeout(self):
+        self.timerPortReply.stop()
+        self.eventTransmitComplete.set()
+
+    def portSend(self):        
+        if self.ser.isOpen():
+            if self.eventTransmitComplete.is_set():
+                self.eventTransmitComplete.clear()
                 packet = bytearray()
                 packet.append(DEBUG_HEADER)
-                packet.append(idx)
-                value = data.to_bytes(4, 'little')
-                for v in value:
-                    packet.append(v)
+                with self.requestlock:
+                    packet.append(self.cmd)
+                    if DEBUG_PACKET_CMD_GET_RECORD == self.cmd:
+                        packet.append(self.recordIdx)
+                        packet.append(0)
+                        packet.append(0)
+                        packet.append(0)              
+                    elif DEBUG_PACKET_CMD_GET_RPM == self.cmd:
+                        packet.append(0)                    
+                        packet.append(0)
+                        packet.append(0)
+                        packet.append(0)
+                    elif DEBUG_PACKET_CMD_SET_RECORD == self.cmd:
+                        rpm = self.timings[self.recordIdx]['rpm'].value()
+                        value = int(self.timings[self.recordIdx]['value'].text())
+                        data = pack('BBH', self.recordIdx, value, rpm)
+                        for d in data:
+                            packet.append(d)
+                    else:
+                        packet.append(0)                    
+                        packet.append(0)
+                        packet.append(0)
+                        packet.append(0)
                 crc = 0
                 for one in packet:
                     crc = crc + one
                 packet.append(crc & 0xFF)
                 if UART_DEBUG:
-                    print('<- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
+                    print(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' <- ' + ' '.join('0x{:02X}'.format(x) for x in packet))
+                self.timerPortReply.start(self.timerPortReplyTimeoutMs)
                 self.ser.write(packet)
-            else:
-                self.ui.statusbar.showMessage('Port not open')
         else:
-            self.ui.statusbar.showMessage('Port awaiting answer')
+            self.ui.statusbar.showMessage('Port not open')
+           
+    def calcValue(self, idx, value):
+        timing = self.timings[idx]['timing'].value()
+        shift = self.timings[idx]['shift'].value()                
+        self.timings[idx]['value'].setText(str(shift - timing))
 
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -158,11 +166,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.signalMapper.setMapping(node, port.device)
             group.addAction(node)
             self.ui.menuPort.addAction(node)
-        for i in range(0, RECORD_TOTAL_SLOTS):
-            self.timings.append({'rpm' : QLineEdit(),
-                              'timing' : QLineEdit(),
-                              'shift' : QLineEdit(),
+        for i in range(0, METER_TIMING_RECORD_TOTAL_SLOTS):
+            self.timings.append({'rpm' : QSpinBox(),
+                              'timing' : QSpinBox(),
+                              'shift' : QSpinBox(),
                               'value' : QLineEdit()})
+            self.timings[-1]['rpm'].setMaximum(METER_RPM_MAX)
+            self.timings[-1]['timing'].setMinimum(METER_TIMING_UNDER_LOW)
+            self.timings[-1]['timing'].setMaximum(METER_TIMING_OVER_HIGH)
+            self.timings[-1]['timing'].valueChanged.connect(partial(self.calcValue, len(self.timings) - 1))
+            self.timings[-1]['shift'].setMaximum(UINT8_MAX)
+            self.timings[-1]['shift'].valueChanged.connect(partial(self.calcValue, len(self.timings) - 1))
+            self.timings[-1]['value'].setReadOnly(True)
             layout = QHBoxLayout()
             layout.addWidget(self.timings[-1]['rpm'])
             layout.addWidget(self.timings[-1]['timing'])
@@ -170,30 +185,39 @@ class MainWindow(QtWidgets.QMainWindow):
             layout.addWidget(self.timings[-1]['value'])
             widget = QWidget()
             widget.setLayout(layout)
-            self.ui.verticalLayoutData.addWidget(widget)
-        self.timerPortRead.timeout.connect(self.portRead)
-        self.timerPortRequest.timeout.connect(self.portRequest)
+            self.ui.verticalLayoutTimings.addWidget(widget)
+        self.adjustSize()
+        self.timerPortSend.timeout.connect(self.portSend)
+        self.timerPortAutoRead.timeout.connect(self.portRead)
+        self.timerPortReply.timeout.connect(self.portReplyTimeout)
 
     def closeEvent(self, event):
         if self.exitApprove():
+            self.timerPortSend.stop()
+            self.timerPortAutoRead.stop()
+            self.timerPortReply.stop()
             if self.ser.isOpen():
                 self.ser.close()
             event.accept()
         else:
             event.ignore()
 
-    def on_pushButtonUpdate_released(self):
-        if isint(self.ui.lineEditAngle.text()):
-            angle = abs(int(self.ui.lineEditAngle.text()))
-            self.portWrite(DEBUG_PACKET_IDX_SET_TIMING, angle)
-        else:
-            self.ui.statusbar.showMessage('Angle wrong value')
+    def on_pushButtonGenerate_released(self):
+        #TODO: Generate and send sample to VISA device
+        pass
 
-    def on_checkBoxLed_stateChanged(self, arg):
-        if (QtCore.Qt.Checked == arg):
-            self.portWrite(DEBUG_PACKET_IDX_SET_LED, True)
+    def on_pushButtonUpdate_released(self):
+        try:
+            for i in range(0, METER_TIMING_RECORD_TOTAL_SLOTS):
+                value = int(self.timings[i]['value'].text())
+                if value < 0:
+                    raise ValueError
+        except ValueError:
+            self.ui.statusbar.showMessage('Timings wrong value')
         else:
-            self.portWrite(DEBUG_PACKET_IDX_SET_LED, False)
+            with self.requestlock:
+                self.recordIdx = 0
+                self.cmd = DEBUG_PACKET_CMD_SET_RECORD
 
     @QtCore.pyqtSlot(bool)
     def on_actionExit_triggered(self, arg):
