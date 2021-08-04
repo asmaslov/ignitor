@@ -1,4 +1,4 @@
-import sys, threading, asyncio, time, serial, serial.tools.list_ports
+import sys, threading, asyncio, time, serial, serial.tools.list_ports, visa
 from datetime import datetime
 from functools import partial
 from struct import pack
@@ -21,6 +21,7 @@ def isint(value):
 class MainWindow(QtWidgets.QMainWindow):
     ui = Ui_MainWindow()
     ser = serial.Serial()
+    rm = visa.ResourceManager('@py')
     timings = []
     timerPortSend = QtCore.QTimer()
     timerPortSendPeriodMs = 100
@@ -32,9 +33,10 @@ class MainWindow(QtWidgets.QMainWindow):
     recordIdx = 0
     requestlock = threading.Lock()
     eventTransmitComplete = asyncio.Event()
+    wavePoints = []
 
     def exitApprove(self):
-        return QMessageBox.Yes == QMessageBox.question(self, 'Exit', 'Are you sure?', QMessageBox.Yes| QMessageBox.No)
+        return QMessageBox.Yes == QMessageBox.question(self, 'Exit', 'Are you sure?', QMessageBox.Yes | QMessageBox.No)
 
     def setPort(self, name):
         if self.ser.isOpen():
@@ -60,12 +62,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.timerPortAutoRead.start(self.timerPortAutoReadPeriodMs)
             self.ui.statusbar.showMessage('Connected to ' + name)
 
+    def setGeneratorVisa(self, name):
+        self.generator = self.rm.open_resource(name)
+        self.ui.spinBoxSpeedSet.setEnabled(True)
+        self.ui.pushButtonGenerate.setEnabled(True)
+
     def portRead(self):
         if self.ser.isOpen():
             if self.ser.inWaiting() >= DEBUG_REPLY_PACKET_LEN:
                 self.timerPortReply.stop()
                 data = bytearray(self.ser.read())
-                if DEBUG_HEADER == data[DEBUG_REPLY_PACKET_PART_HEADER]:                
+                if DEBUG_HEADER == data[DEBUG_REPLY_PACKET_PART_HEADER]:
                     data.extend(bytearray(self.ser.read(DEBUG_REPLY_PACKET_LEN - 1)))
                     if UART_DEBUG:
                         print(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' -> ' + ' '.join('0x{:02X}'.format(x) for x in data))
@@ -109,7 +116,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timerPortReply.stop()
         self.eventTransmitComplete.set()
 
-    def portSend(self):        
+    def portSend(self):
         if self.ser.isOpen():
             if self.eventTransmitComplete.is_set():
                 self.eventTransmitComplete.clear()
@@ -121,9 +128,9 @@ class MainWindow(QtWidgets.QMainWindow):
                         packet.append(self.recordIdx)
                         packet.append(0)
                         packet.append(0)
-                        packet.append(0)              
+                        packet.append(0)
                     elif DEBUG_PACKET_CMD_GET_RPM == self.cmd:
-                        packet.append(0)                    
+                        packet.append(0)
                         packet.append(0)
                         packet.append(0)
                         packet.append(0)
@@ -134,7 +141,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         for d in data:
                             packet.append(d)
                     else:
-                        packet.append(0)                    
+                        packet.append(0)
                         packet.append(0)
                         packet.append(0)
                         packet.append(0)
@@ -148,29 +155,41 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ser.write(packet)
         else:
             self.ui.statusbar.showMessage('Port not open')
-           
+
     def calcValue(self, idx, value):
         timing = self.timings[idx]['timing'].value()
-        shift = self.timings[idx]['shift'].value()                
+        shift = self.timings[idx]['shift'].value()
         self.timings[idx]['value'].setText(str(shift - timing))
 
     def __init__(self):
         super(MainWindow, self).__init__()
         self.ui.setupUi(self)
         group = QtWidgets.QActionGroup(self.ui.menuPort)
-        self.signalMapper = QtCore.QSignalMapper(self)
-        self.signalMapper.mapped[str].connect(self.setPort)
+        self.signalMapperPort = QtCore.QSignalMapper(self)
+        self.signalMapperPort.mapped[str].connect(self.setPort)
         for port in list(serial.tools.list_ports.comports()):
-            node = QtWidgets.QAction(port.device, self.ui.menuPort, checkable = True)
-            node.triggered.connect(self.signalMapper.map)
-            self.signalMapper.setMapping(node, port.device)
+            node = QtWidgets.QAction(port.device, self.ui.menuPort, checkable=True)
+            node.triggered.connect(self.signalMapperPort.map)
+            self.signalMapperPort.setMapping(node, port.device)
             group.addAction(node)
             self.ui.menuPort.addAction(node)
+        self.signalMapperGeneratorVisa = QtCore.QSignalMapper(self)
+        self.signalMapperGeneratorVisa.mapped[str].connect(self.setGeneratorVisa)
+        try:
+            for device in self.rm.list_resources():
+                if 'tty' not in device:
+                    node = QtWidgets.QAction(device, self.ui.menuGenerator, checkable=True)
+                    node.triggered.connect(self.signalMapperGeneratorVisa.map)
+                    self.signalMapperGeneratorVisa.setMapping(node, device)
+                    group.addAction(node)
+                    self.ui.menuGenerator.addAction(node)
+        except:
+            self.ui.statusbar.showMessage('Generator not found')
         for i in range(0, METER_TIMING_RECORD_TOTAL_SLOTS):
-            self.timings.append({'rpm' : QSpinBox(),
-                              'timing' : QSpinBox(),
-                              'shift' : QSpinBox(),
-                              'value' : QLineEdit()})
+            self.timings.append({'rpm': QSpinBox(),
+                                 'timing': QSpinBox(),
+                                 'shift': QSpinBox(),
+                                 'value': QLineEdit()})
             self.timings[-1]['rpm'].setMaximum(METER_RPM_MAX)
             self.timings[-1]['timing'].setMinimum(METER_TIMING_UNDER_LOW)
             self.timings[-1]['timing'].setMaximum(METER_TIMING_OVER_HIGH)
@@ -203,8 +222,9 @@ class MainWindow(QtWidgets.QMainWindow):
             event.ignore()
 
     def on_pushButtonGenerate_released(self):
-        #TODO: Generate and send sample to VISA device
-        pass
+        self.generator.write('STORELIST? RELEASE')
+        self.ui.statusbar.showMessage(self.generator.read().rstrip('\r\n'))
+        # TODO: Generate and send sample to VISA device
 
     def on_pushButtonUpdate_released(self):
         try:
@@ -218,13 +238,6 @@ class MainWindow(QtWidgets.QMainWindow):
             with self.requestlock:
                 self.recordIdx = 0
                 self.cmd = DEBUG_PACKET_CMD_SET_RECORD
-
-    @QtCore.pyqtSlot(bool)
-    def on_actionExit_triggered(self, arg):
-        if self.exitApprove():
-            if self.ser.isOpen():
-                self.ser.close()
-            sys.exit()
 
 app = QtWidgets.QApplication(sys.argv)
 main = MainWindow()

@@ -120,20 +120,16 @@
     <property name="title">
      <string>Port</string>
     </property>
-    <addaction name="actionExit"/>
-    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="menuGenerator">
+    <property name="title">
+     <string>Generator</string>
+    </property>
    </widget>
    <addaction name="menuPort"/>
+   <addaction name="menuGenerator"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <action name="actionExit">
-   <property name="text">
-    <string>Exit</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Q</string>
-   </property>
-  </action>
  </widget>
  <resources>
   <include location="ignitor.qrc"/>
