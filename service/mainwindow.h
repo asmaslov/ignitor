@@ -10,8 +10,11 @@
 #include <QLineEdit>
 #include <QSerialPort>
 #include <QTimer>
+#include <QThread>
 #include <QMutex>
 #include <QSemaphore>
+#include "ltr/include/ltrapi.h"
+#include "ltr35.h"
 
 namespace Ui {
 class MainWindow;
@@ -68,6 +71,10 @@ private:
     int recordIdx;
     QMutex mutexRequest;
     QSemaphore semaphoreTransmitComplete;
+    QActionGroup *groupGenerator;
+    TLTR ltrServer;
+    QThread threadLtr35;
+    QScopedPointer<Ltr35> ltr35;
 
 };
 

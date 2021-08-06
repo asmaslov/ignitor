@@ -103,11 +103,3 @@ void remote_led(bool on) {
         PORTD |= (1 << PD4);
     }
 }
-
-void remote_toggle(void) {
-    if (PIND & (1 << PIND4)) {
-        PORTD &= ~(1 << PD4);
-    } else {
-        PORTD |= (1 << PD4);
-    }
-}

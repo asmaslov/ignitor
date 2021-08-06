@@ -85,6 +85,5 @@ typedef union {
 void remote_init(void);
 void remote_work(void);
 void remote_led(bool on);
-void remote_toggle(void);
 
 #endif /* REMOTE_H_ */

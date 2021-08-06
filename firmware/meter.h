@@ -31,6 +31,8 @@ typedef struct _MeterTimingRecord {
 
 typedef void (*MeterSparkHandler)(MeterSpark spark, bool on);
 
+extern MeterSpark nextSpark;
+
 void meter_init(MeterSparkHandler sparkHandler);
 uint16_t meter_getRpm(void);
 MeterTimingRecord *getTimingRecord(uint8_t slot);

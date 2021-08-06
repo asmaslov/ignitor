@@ -11,13 +11,17 @@ INCLUDEPATH += $$PWD/../firmware
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    ltr35.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    ltr35.h
 
 FORMS += \
     ignitor.ui
 
 RESOURCES += \
     ignitor.qrc
+
+LIBS += -lltrapi -lltr35api

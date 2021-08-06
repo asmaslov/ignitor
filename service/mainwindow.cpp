@@ -18,9 +18,21 @@ MainWindow::MainWindow(QWidget *parent)
   , serial(new QSerialPort)
   , cmd(REMOTE_PACKET_CMD_GET_RECORD)
   , recordIdx(0)
+  , ltr35(new Ltr35)
 {
+    TLTR ltrCrate;
+    BYTE csn[LTR_CRATES_MAX][LTR_CRATE_SERIAL_SIZE];
+    WORD mid[LTR_MODULES_PER_CRATE_MAX];
+    QString crateSerial;
+    int slotNumber;
+
     ui->setupUi(this);
     groupPort = new QActionGroup(ui->menuPort);
+    groupGenerator = new QActionGroup(ui->menuGenerator);
+    LTR_Init(&ltrServer);
+
+    ltr35->moveToThread(&threadLtr35);
+    threadLtr35.start();
 
     connect(signalMapperPort, SIGNAL(mapped(const QString &)), this, SLOT(setPort(const QString &)));
     foreach (QSerialPortInfo info,  QSerialPortInfo::availablePorts()) {
@@ -31,8 +43,58 @@ MainWindow::MainWindow(QWidget *parent)
         connect(node, SIGNAL(triggered()), signalMapperPort, SLOT(map()));
         ui->menuPort->addAction(node);
     }
+
     connect(signalMapperGenerator, SIGNAL(mapped(const QString &)), this, SLOT(setGenerator(const QString &)));
-    //TODO: Create list of LTR's
+    memset(csn, 0, sizeof(BYTE) * LTR_CRATES_MAX * LTR_CRATE_SERIAL_SIZE);
+    if (LTR_IsOpened(&ltrServer) != LTR_OK) {
+        if (LTR_OpenSvcControl(&ltrServer, LTRD_ADDR_DEFAULT, LTRD_PORT_DEFAULT) != LTR_OK)
+        {
+            qCritical("There is no connection with the service");
+        }
+    }
+    if (LTR_IsOpened(&ltrServer) == LTR_OK)
+    {
+        LTR_GetCrates(&ltrServer, &csn[0][0]);
+        for (int i = 0; i < LTR_CRATES_MAX; i++)
+        {
+            if (strlen((const char*)csn[i]) != 0)
+            {
+                LTR_Init(&ltrCrate);
+                crateSerial = QString((const char*)csn[i]);
+                if (LTR_OpenCrate(&ltrCrate, LTRD_ADDR_DEFAULT, LTRD_PORT_DEFAULT,
+                                  LTR_CRATE_IFACE_UNKNOWN, crateSerial.toStdString().c_str()) == LTR_OK)
+                {
+                    LTR_GetCrateModules(&ltrCrate, &mid[0]);
+                    for (int j = 0; j < LTR_MODULES_PER_CRATE_MAX; j++)
+                    {
+                        if (mid[j] != 0)
+                        {
+                            slotNumber = j + 1;
+                            if (LTR_MID_LTR35 == mid[j])
+                            {
+                                if (ltr35->open(crateSerial, slotNumber))
+                                {
+                                    ltr35->close();
+                                    QString nodeName = QString("%1:%2").arg(crateSerial).arg(slotNumber);
+                                    QAction *node = new QAction(nodeName, ui->menuPort);
+                                    node->setCheckable(true);
+                                    groupGenerator->addAction(node);
+                                    signalMapperGenerator->setMapping(node, nodeName);
+                                    connect(node, SIGNAL(triggered()), signalMapperGenerator, SLOT(map()));
+                                    ui->menuGenerator->addAction(node);
+                                }
+                            }
+                        }
+                    }
+                    LTR_Close(&ltrCrate);
+                }
+            }
+        }
+        LTR_Close(&ltrServer);
+    }
+
+    ui->spinBoxSpeedSet->setMinimum(METER_RPM_MIN);
+    ui->spinBoxSpeedSet->setMaximum(METER_RPM_MAX);
 
     for (int i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
         timingsUi.append(createTimingUi(ui->gridLayoutTimings, QString("%1").arg(i + 1), i + 1));
@@ -49,6 +111,7 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete groupGenerator;
     delete groupPort;
     delete signalMapperGenerator;
     delete signalMapperPort;
@@ -62,6 +125,17 @@ void MainWindow::closeEvent(QCloseEvent* e)
     if (serial.isOpen()) {
         serial.close();
     }
+    if (ltr35->isReady()) {
+        if (ltr35->isBusy()) {
+            QMetaObject::invokeMethod(ltr35.data(), "stop", Qt::QueuedConnection);
+        }
+        while (ltr35->isBusy()) {
+            QThread::yieldCurrentThread();
+        }
+        ltr35->close();
+    }
+    threadLtr35.quit();
+    threadLtr35.wait();
     e->accept();
 }
 
@@ -138,7 +212,16 @@ void MainWindow::setPort(const QString &portname) {
 }
 
 void MainWindow::setGenerator(const QString &generator) {
-    //TODO: Select LTR
+    if (ltr35->isReady()) {
+        if (ltr35->isBusy()) {
+            QMetaObject::invokeMethod(ltr35.data(), "stop", Qt::QueuedConnection);
+        }
+        while (ltr35->isBusy()) {
+            QThread::yieldCurrentThread();
+        }
+        ltr35->close();
+    }
+    ltr35->open(generator.split(':')[0], generator.split(':')[1].toInt());
     ui->spinBoxSpeedSet->setEnabled(true);
     ui->pushButtonGenerate->setEnabled(true);
 }
@@ -265,5 +348,18 @@ void MainWindow::on_pushButtonUpdate_released()
 
 void MainWindow::on_pushButtonGenerate_released()
 {
-    //TODO: Generate and send sample to LTR
+    if (ltr35->isReady()) {
+        if (ltr35->isBusy()) {
+            QMetaObject::invokeMethod(ltr35.data(), "stop", Qt::QueuedConnection);
+        }
+        while (ltr35->isBusy()) {
+            QThread::yieldCurrentThread();
+        }
+        //TODO: Setup all parameters
+        if (ui->spinBoxSpeedSet->value() != 0) {
+            if (ltr35->setupRotorSignal(0, false, 1.0, (double)ui->spinBoxSpeedSet->value() / 60.0)) {
+                QMetaObject::invokeMethod(ltr35.data(), "start", Qt::QueuedConnection);
+            }
+        }
+    }
 }

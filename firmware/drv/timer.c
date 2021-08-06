@@ -1,5 +1,6 @@
 #include "timer.h"
 #include "config.h"
+#include "remote.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
@@ -36,10 +37,14 @@ enum TIMER02_WGM {
     TIMER02_WGM_PWM_FAST_OCR = 7
 };
 
+#if defined(TCCR0A) || defined(TCCR1A)
 static const uint16_t prescale01[] = { 1, 8, 64, 256, 1024 };
 static const uint8_t dv01 = 5;
+#endif
+#if defined(TCCR2A)
 static const uint16_t prescale2[] = { 1, 8, 32, 64, 128, 256, 1024 };
 static const uint8_t dv2 = 7;
+#endif
 
 #ifdef TCCR0A
 static Timer *timer0;
@@ -103,13 +108,15 @@ ISR(TIMER0_COMPB_vect) {
 
 ISR(TIMER0_OVF_vect) {
     if (timer0) {
+        if (timer0->handler) {
+            timer0->handler(TIMER_EVENT_OVERFLOW);
+        }
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
         {
             if (timer0->overflowCount < UINT32_MAX) {
                 timer0->overflowCount++;
             }
         }
-        timer0->handler(TIMER_EVENT_OVERFLOW);
     }
 }
 #endif
@@ -148,13 +155,15 @@ ISR(TIMER1_CAPT_vect) {
 
 ISR(TIMER1_OVF_vect) {
     if (timer1) {
+        if (timer1->handler) {
+            timer1->handler(TIMER_EVENT_OVERFLOW);
+        }
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
         {
             if (timer1->overflowCount < UINT32_MAX) {
                 timer1->overflowCount++;
             }
         }
-        timer1->handler(TIMER_EVENT_OVERFLOW);
     }
 }
 #endif
@@ -178,13 +187,15 @@ ISR(TIMER2_COMPB_vect) {
 
 ISR(TIMER2_OVF_vect) {
     if (timer2) {
+        if (timer2->handler) {
+            timer2->handler(TIMER_EVENT_OVERFLOW);
+        }
         ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
         {
             if (timer2->overflowCount < UINT32_MAX) {
                 timer2->overflowCount++;
             }
         }
-        timer2->handler(TIMER_EVENT_OVERFLOW);
     }
 }
 #endif
@@ -280,6 +291,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
     uint16_t ocr;
 
     timer->index = index;
+    timer->handler = handler;
     switch (index) {
 #ifdef TCCR0A
 #ifdef TIMER_PWM_0
@@ -489,106 +501,98 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
 }
 
 void timer_run(Timer *timer, uint16_t start) {
-    if (timer) {
-        switch (timer->index) {
+    switch (timer->index) {
 #ifdef TCCR0A
-            case TIMER_0:
-                timer->overflowCount = 0;
-                TCNT0 = (uint8_t)start;
-                TCCR0B |= ((timer->clockSelect & 0x7) << CS00);
-                break;
+        case TIMER_0:
+            timer->overflowCount = 0;
+            TCNT0 = (uint8_t)start;
+            TCCR0B |= ((timer->clockSelect & 0x7) << CS00);
+            break;
 #endif
 #ifdef TCCR1A
-            case TIMER_1:
-                timer->overflowCount = 0;
-                TCNT1 = start;
-                TCCR1B |= ((timer->clockSelect & 0x7) << CS10);
-                break;
+        case TIMER_1:
+            timer->overflowCount = 0;
+            TCNT1 = start;
+            TCCR1B |= ((timer->clockSelect & 0x7) << CS10);
+            break;
 #endif
 #ifdef TCCR2A
-            case TIMER_2:
-                timer->overflowCount = 0;
-                TCNT2 = (uint8_t)start;
-                TCCR2B |= ((timer->clockSelect & 0x7) << CS20);
-                break;
+        case TIMER_2:
+            timer->overflowCount = 0;
+            TCNT2 = (uint8_t)start;
+            TCCR2B |= ((timer->clockSelect & 0x7) << CS20);
+            break;
 #endif
-            default:
-                return;
-        }
+        default:
+            return;
     }
 }
 
 void timer_stop(Timer *timer) {
-    if (timer) {
-        switch (timer->index) {
+    switch (timer->index) {
 #ifdef TCCR0A
-            case TIMER_0:
-                TCCR0B &= ~(0x7 << CS00);
-                break;
+        case TIMER_0:
+            TCCR0B &= ~(0x7 << CS00);
+            break;
 #endif
 #ifdef TCCR1A
-            case TIMER_1:
-                TCCR1B &= ~(0x7 << CS10);
-                break;
+        case TIMER_1:
+            TCCR1B &= ~(0x7 << CS10);
+            break;
 #endif
 #ifdef TCCR2A
-            case TIMER_2:
-                TCCR2B &= ~(0x7 << CS20);
-                break;
+        case TIMER_2:
+            TCCR2B &= ~(0x7 << CS20);
+            break;
 #endif
-            default:
-                return;
-        }
+        default:
+            return;
     }
 }
 
 void timer_setPwmDuty(Timer *timer, uint8_t duty) {
     uint16_t ocr;
 
-    if (timer) {
-        switch (timer->index) {
+    switch (timer->index) {
 #ifdef TCCR0A
-            case TIMER_0:
-                ocr = OCR0A;
-                OCR0B = (uint8_t)(ocr * duty / 100);
-                break;
+        case TIMER_0:
+            ocr = OCR0A;
+            OCR0B = (uint8_t)(ocr * duty / 100);
+            break;
 #endif
 #ifdef TCCR1A
-            case TIMER_1:
-                ocr = OCR1A;
-                OCR1B = ocr * duty / 100;
-                break;
+        case TIMER_1:
+            ocr = OCR1A;
+            OCR1B = ocr * duty / 100;
+            break;
 #endif
 #ifdef TCCR1A
-            case TIMER_2:
-                ocr = OCR2A;
-                OCR2B = (uint8_t)(ocr * duty / 100);
-                break;
+        case TIMER_2:
+            ocr = OCR2A;
+            OCR2B = (uint8_t)(ocr * duty / 100);
+            break;
 #endif
-            default:
-                return;
-        }
+        default:
+            return;
     }
 }
 
 uint16_t timer_get(Timer *timer) {
-    if (timer) {
-        switch (timer->index) {
+    switch (timer->index) {
 #ifdef TCCR0A
-            case TIMER_0:
-                return TCNT0;
+        case TIMER_0:
+            return TCNT0;
 #endif
 #ifdef TCCR1A
-            case TIMER_1:
-                return TCNT1;
+        case TIMER_1:
+            return TCNT1;
 #endif
 #ifdef TCCR2A
-            case TIMER_2:
-                return TCNT2;
+        case TIMER_2:
+            return TCNT2;
 #endif
-            default:
-                return UINT16_MAX;
-        }
+        default:
+            return UINT16_MAX;
     }
     return UINT16_MAX;
 }

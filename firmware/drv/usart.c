@@ -138,9 +138,6 @@ ISR(USART1_TX_vect) {
 
 bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
     //TODO: use setbaud.h
-    if (!usart) {
-        return false;
-    }
     usart->index = index;
     usart->rxBufferIndexRead = 0;
     usart->rxBufferIndexWrite = 0;
@@ -176,49 +173,41 @@ bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
 }
 
 void usart_putchar(Usart *usart, const uint8_t data) {
-    if (usart) {
-        while (usart->txBufferCount >= USART_BUFFER_SIZE);
-        if ((usart->txBufferCount > 0) || !dataRegisterEmpty(usart->index)) {
-            usart->txBuffer[usart->txBufferIndexWrite++] = data;
-            if (USART_BUFFER_SIZE == usart->txBufferIndexWrite) {
-                usart->txBufferIndexWrite = 0;
-            }
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                usart->txBufferCount++;
-            }
+    while (usart->txBufferCount >= USART_BUFFER_SIZE);
+    if ((usart->txBufferCount > 0) || !dataRegisterEmpty(usart->index)) {
+        usart->txBuffer[usart->txBufferIndexWrite++] = data;
+        if (USART_BUFFER_SIZE == usart->txBufferIndexWrite) {
+            usart->txBufferIndexWrite = 0;
         }
-        else {
-            *usart->regData = data;
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+            usart->txBufferCount++;
         }
+    }
+    else {
+        *usart->regData = data;
     }
 }
 
 void usart_putstr(Usart *usart, const char *str) {
-    if (usart) {
-        while (*str != '\0') {
-            usart_putchar(usart, *str++);
-        }
+    while (*str != '\0') {
+        usart_putchar(usart, *str++);
     }
 }
 
 const uint8_t usart_getchar(Usart *usart) {
     uint8_t data = UCHAR_MAX;
 
-    if (usart) {
-        while (0 == usart->rxBufferCount);
-        data = usart->rxBuffer[usart->rxBufferIndexRead++];
-        if (USART_BUFFER_SIZE == usart->rxBufferIndexRead) {
-            usart->rxBufferIndexRead = 0;
-        }
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-            usart->rxBufferCount--;
-        }
+    while (0 == usart->rxBufferCount);
+    data = usart->rxBuffer[usart->rxBufferIndexRead++];
+    if (USART_BUFFER_SIZE == usart->rxBufferIndexRead) {
+        usart->rxBufferIndexRead = 0;
+    }
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        usart->rxBufferCount--;
     }
     return data;
 }
 
 void usart_flush(Usart *usart) {
-    if (usart) {
-        while (usart->txBufferCount != 0);
-    }
+    while (usart->txBufferCount != 0);
 }

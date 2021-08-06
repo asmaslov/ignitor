@@ -21,14 +21,21 @@
       </property>
      </widget>
     </item>
-    <item row="3" column="1" colspan="3">
-     <widget class="QPushButton" name="pushButtonUpdate">
-      <property name="text">
-       <string>Update</string>
+    <item row="0" column="2">
+     <widget class="QSpinBox" name="spinBoxSpeedSet">
+      <property name="enabled">
+       <bool>false</bool>
       </property>
      </widget>
     </item>
     <item row="0" column="3">
+     <widget class="QLabel" name="labelSpeedSet">
+      <property name="text">
+       <string>Rpm</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="4">
      <widget class="QPushButton" name="pushButtonGenerate">
       <property name="enabled">
        <bool>false</bool>
@@ -38,14 +45,14 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="2" colspan="2">
+    <item row="1" column="2" colspan="3">
      <widget class="QLineEdit" name="lineEditSpeedReal">
       <property name="readOnly">
        <bool>true</bool>
       </property>
      </widget>
     </item>
-    <item row="2" column="1" colspan="3">
+    <item row="2" column="1" colspan="4">
      <layout class="QGridLayout" name="gridLayoutTimings">
       <item row="0" column="4">
        <widget class="QLabel" name="labelValue">
@@ -99,10 +106,10 @@
       </item>
      </layout>
     </item>
-    <item row="0" column="2">
-     <widget class="QSpinBox" name="spinBoxSpeedSet">
-      <property name="enabled">
-       <bool>false</bool>
+    <item row="3" column="1" colspan="4">
+     <widget class="QPushButton" name="pushButtonUpdate">
+      <property name="text">
+       <string>Update</string>
       </property>
      </widget>
     </item>
@@ -113,7 +120,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>659</width>
+     <width>236</width>
      <height>22</height>
     </rect>
    </property>
