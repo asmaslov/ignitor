@@ -7,8 +7,5 @@
 *.map
 ui_*.py
 *_rc.py
-h2py_*.py
-__pycache__
-*.spec
-build
-dist
+*.pro.*
+build-*

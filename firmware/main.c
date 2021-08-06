@@ -1,6 +1,6 @@
 #include "config.h"
 #include "timer.h"
-#include "debug.h"
+#include "remote.h"
 #include "meter.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -42,12 +42,12 @@ static void watchdog_init(void)
 int main(void)
 {
     sei();
-    debug_init();
+    remote_init();
     watchdog_init();
     sparks_init();
     meter_init(sparks_ignite);
     while (true) {
-        debug_work();
+        remote_work();
     }
     return 0;
 }

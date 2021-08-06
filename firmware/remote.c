@@ -1,4 +1,4 @@
-#include "debug.h"
+#include "remote.h"
 #include "usart.h"
 #include "meter.h"
 #include <avr/io.h>
@@ -9,9 +9,9 @@
  ****************************************************************************/
 
 static uint8_t receivedPartIndex;
-static DebugControlPacket controlPacket;
+static RemoteControlPacket controlPacket;
 static MeterTimingRecord *record;
-static DebugReplyPacket replyPacket;
+static RemoteReplyPacket replyPacket;
 static Usart usart0;
 
 /****************************************************************************
@@ -26,22 +26,22 @@ static void proceed(void) {
     uint8_t crc = 0;
 
     //TODO: use crc16.h
-    for (uint8_t i = 0; i < DEBUG_CONTROL_PACKET_PART_CRC; i++) {
+    for (uint8_t i = 0; i < REMOTE_CONTROL_PACKET_PART_CRC; i++) {
         crc += controlPacket.bytes[i];
     }
     if (crc == controlPacket.crc) {
         replyPacket.idx = controlPacket.idx;
         switch (controlPacket.idx) {
-            case DEBUG_PACKET_CMD_GET_RPM:
+            case REMOTE_PACKET_CMD_GET_RPM:
                 replyPacket.value16_0 = meter_getRpm();
                 break;
-            case DEBUG_PACKET_CMD_GET_RECORD:
+            case REMOTE_PACKET_CMD_GET_RECORD:
                 replyPacket.value8_0 = controlPacket.value8_0;
                 record = getTimingRecord(controlPacket.value8_0);
                 replyPacket.value16_1 = record->rpm;
                 replyPacket.value8_1 = record->value;
                 break;
-            case DEBUG_PACKET_CMD_SET_RECORD:
+            case REMOTE_PACKET_CMD_SET_RECORD:
                 replyPacket.value8_0 = controlPacket.value8_0;
                 meter_setTimingRecord(controlPacket.value8_0, controlPacket.value16_1, controlPacket.value8_1);
                 replyPacket.value16_1 = controlPacket.value16_1;
@@ -51,7 +51,7 @@ static void proceed(void) {
                 return;
         }
         replyPacket.crc = 0;
-        for (uint8_t i = DEBUG_REPLY_PACKET_PART_HEADER; i < DEBUG_REPLY_PACKET_PART_CRC; i++) {
+        for (uint8_t i = REMOTE_REPLY_PACKET_PART_HEADER; i < REMOTE_REPLY_PACKET_PART_CRC; i++) {
             usart_putchar(&usart0, replyPacket.bytes[i]);
             replyPacket.crc += replyPacket.bytes[i];
         }
@@ -63,40 +63,40 @@ static void proceed(void) {
  * Public functions                                                         *
  ****************************************************************************/
 
-void debug_init(void) {
+void remote_init(void) {
     DDRD |= (1 << DDD4);
-    debug_led(false);
-    receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
-    replyPacket.hdr = DEBUG_HEADER;
-    usart_init(&usart0, USART_0, DEBUG_BAUDRATE);
+    remote_led(false);
+    receivedPartIndex = REMOTE_CONTROL_PACKET_PART_HEADER;
+    replyPacket.hdr = REMOTE_HEADER;
+    usart_init(&usart0, USART_0, REMOTE_BAUDRATE);
 }
 
-void debug_work(void) {
+void remote_work(void) {
     if (usart0.rxBufferCount > 0) {
         uint8_t byte = usart_getchar(&usart0);
         controlPacket.bytes[receivedPartIndex] = byte;
         switch (receivedPartIndex) {
-            case DEBUG_CONTROL_PACKET_PART_HEADER:
-                if (DEBUG_HEADER == byte) {
+            case REMOTE_CONTROL_PACKET_PART_HEADER:
+                if (REMOTE_HEADER == byte) {
                     receivedPartIndex++;
                 }
                 break;
-            case DEBUG_CONTROL_PACKET_PART_CMD:
-            case DEBUG_CONTROL_PACKET_PART_VALUE_0:
-            case DEBUG_CONTROL_PACKET_PART_VALUE_1:
-            case DEBUG_CONTROL_PACKET_PART_VALUE_2:
-            case DEBUG_CONTROL_PACKET_PART_VALUE_3:
+            case REMOTE_CONTROL_PACKET_PART_CMD:
+            case REMOTE_CONTROL_PACKET_PART_VALUE_0:
+            case REMOTE_CONTROL_PACKET_PART_VALUE_1:
+            case REMOTE_CONTROL_PACKET_PART_VALUE_2:
+            case REMOTE_CONTROL_PACKET_PART_VALUE_3:
                 receivedPartIndex++;
                 break;
-            case DEBUG_CONTROL_PACKET_PART_CRC:
+            case REMOTE_CONTROL_PACKET_PART_CRC:
                 proceed();
-                receivedPartIndex = DEBUG_CONTROL_PACKET_PART_HEADER;
+                receivedPartIndex = REMOTE_CONTROL_PACKET_PART_HEADER;
                 break;
         }
     }
 }
 
-void debug_led(bool on) {
+void remote_led(bool on) {
     if (on) {
         PORTD &= ~(1 << PD4);
     } else {
@@ -104,7 +104,7 @@ void debug_led(bool on) {
     }
 }
 
-void debug_toggle(void) {
+void remote_toggle(void) {
     if (PIND & (1 << PIND4)) {
         PORTD &= ~(1 << PD4);
     } else {
