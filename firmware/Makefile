@@ -17,7 +17,7 @@ CC = avr-gcc
 OBJCOPY = avr-objcopy
 SIZE = avr-size
 
-DEFINES = -DF_CPU=${F_CPU}
+DEFINES = -DF_CPU=${F_CPU} -DREMOTE=
 OPTIONS = -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -funsigned-char -funsigned-bitfields
 CFLAGS = -mmcu=${MCU} ${DEFINES} ${INCS_DIRS} -std=gnu99 -Wall -g2 -gstabs -Os ${OPTIONS}
 LDFLAGS = -Wl,--gc-sections -Wl,-Map,${PRJ}.map

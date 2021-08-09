@@ -3,7 +3,6 @@
 #include "remote.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/atomic.h>
 #include <stddef.h>
 
 /****************************************************************************
@@ -69,13 +68,13 @@ static bool calc(const TimerIndex index, const uint32_t freq,
                  uint16_t max, uint16_t *ocr) {
     uint16_t tmp;
 
-    *dv = 0;
     if (NULL == ocr) {
         //NOTE: If "ocr" is NULL we suppose that no output compare is used so
         //      we are looking only for proper divider for precise frequency
         ocr = &tmp;
         max = 0;
     }
+    *dv = 0;
     do {
         *ocr = F_CPU / (((ocr != &tmp) ? 2 : 1) * prescale[(*dv)++] * freq) - 1;
     } while ((*ocr > max) && (*dv < dm));
@@ -111,11 +110,8 @@ ISR(TIMER0_OVF_vect) {
         if (timer0->handler) {
             timer0->handler(TIMER_EVENT_OVERFLOW);
         }
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            if (timer0->overflowCount < UINT32_MAX) {
-                timer0->overflowCount++;
-            }
+        if (timer0->overflowCount < UINT8_MAX) {
+            timer0->overflowCount++;
         }
     }
 }
@@ -141,12 +137,8 @@ ISR(TIMER1_COMPB_vect) {
 ISR(TIMER1_CAPT_vect) {
     TCNT1 = 0;
     if (timer1) {
-        uint32_t count;
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            count = timer1->overflowCount;
-            timer1->overflowCount = 0;
-        }
+        uint32_t count = timer1->overflowCount;
+        timer1->overflowCount = 0;
         if (timer1->resultHandler) {
             timer1->resultHandler(ICR1 + count * UINT16_MAX);
         }
@@ -158,11 +150,8 @@ ISR(TIMER1_OVF_vect) {
         if (timer1->handler) {
             timer1->handler(TIMER_EVENT_OVERFLOW);
         }
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            if (timer1->overflowCount < UINT32_MAX) {
-                timer1->overflowCount++;
-            }
+        if (timer1->overflowCount < UINT8_MAX) {
+            timer1->overflowCount++;
         }
     }
 }
@@ -190,11 +179,8 @@ ISR(TIMER2_OVF_vect) {
         if (timer2->handler) {
             timer2->handler(TIMER_EVENT_OVERFLOW);
         }
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-        {
-            if (timer2->overflowCount < UINT32_MAX) {
-                timer2->overflowCount++;
-            }
+        if (timer2->overflowCount < UINT8_MAX) {
+            timer2->overflowCount++;
         }
     }
 }
@@ -258,9 +244,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR2A
 #ifdef TIMER_SIMPLE_2
         case TIMER_2:
-            if (!calc(timer->index, freq, prescale2, dv2, &timer->clockSelect,
-            UINT8_MAX,
-                      &ocr)) {
+            if (!calc(timer->index, freq, prescale2, dv2,
+                      &timer->clockSelect, UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -296,8 +281,9 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR0A
 #ifdef TIMER_PWM_0
         case TIMER_0:
-            if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      UINT8_MAX, &ocr)) {
+            if (!calc(timer->index, freq, prescale01, dv01,
+                      &timer->clockSelect, UINT8_MAX, &ocr))
+            {
                 return false;
             }
             if (0 == ocr) {
@@ -327,9 +313,9 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #endif
 #ifdef TCCR1A
 #ifdef TIMER_PWM_1
-        case TIMER_1:
+            case TIMER_1:
             if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      TIMER_1_PWM_TOP10, &ocr)) {
+                            TIMER_1_PWM_TOP10, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -352,7 +338,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
             OCR0B = ocr * duty / 100;
             TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
             TCCR1B = (0 << ICNC1) | (0 << ICES1)
-                    | (((wgm >> 2) & 0x3) << WGM12);
+            | (((wgm >> 2) & 0x3) << WGM12);
             TCCR1C = (0 << FOC1A) | (0 << FOC1B);
             timer1 = timer;
             return true;
@@ -360,9 +346,9 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #endif
 #ifdef TCCR2A
 #ifdef TIMER_PWM_2
-        case TIMER_2:
+            case TIMER_2:
             if (!calc(timer->index, freq, prescale2, dv2, &timer->clockSelect,
-                      UINT8_MAX, &ocr)) {
+                            UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -385,7 +371,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
             OCR0B = (uint8_t)(ocr * duty / 100);
             TCCR2A = ((out & 0xF) << COM2B0) | ((wgm & 0x3) << WGM20);
             TCCR2B = (0 << FOC2A) | (0 << FOC2B)
-                    | (((wgm >> 2) & 0x1) << WGM22);
+            | (((wgm >> 2) & 0x1) << WGM22);
             timer2 = timer;
             return true;
 #endif
@@ -483,8 +469,8 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR1A
 #ifdef TIMER_METER_1
         case TIMER_1:
-            if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      0, NULL)) {
+            if (!calc(timer->index, freq, prescale01, dv01,
+                      &timer->clockSelect, 0, NULL)) {
                 return false;
             }
             TIMSK1 = (1 << ICIE1) | (1 << TOIE1);

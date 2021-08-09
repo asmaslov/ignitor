@@ -24,7 +24,7 @@ typedef union {
     uint8_t bytes[REMOTE_CONTROL_PACKET_LEN];
     struct {
         uint8_t hdr;
-        uint8_t idx;
+        uint8_t cmd;
         union {
             uint32_t value32;
             struct {
@@ -56,7 +56,7 @@ typedef union {
     uint8_t bytes[REMOTE_REPLY_PACKET_LEN];
     struct {
         uint8_t hdr;
-        uint8_t idx;
+        uint8_t cmd;
         union {
             uint32_t value32;
             struct {
@@ -74,13 +74,11 @@ typedef union {
     };
 } RemoteReplyPacket;
 
-#define REMOTE_PACKET_CMD_TYPE_SHFT   7
-#define REMOTE_PACKET_CMD_TYPE_MASK   (1 << REMOTE_PACKET_CMD_TYPE_SHFT)
-#define REMOTE_PACKET_CMD_TYPE_GET    0
-#define REMOTE_PACKET_CMD_TYPE_SET    1
+#define REMOTE_PACKET_CMD_UNDEFINED   0x00
 #define REMOTE_PACKET_CMD_GET_RPM     0x01
 #define REMOTE_PACKET_CMD_GET_RECORD  0x21
 #define REMOTE_PACKET_CMD_SET_RECORD  0xA1
+#define REMOTE_PACKET_CMD_APPLY_RECS  0xA2
 
 void remote_init(void);
 void remote_work(void);

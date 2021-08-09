@@ -37,6 +37,9 @@ private:
         QLineEdit *value;
     };
 
+    static constexpr int rotorSignalChannel = 0;
+    static constexpr double rotorSignalAmplitude = 1.0;
+
     static constexpr int timerPortSendPeriodMs = 100;
     static constexpr int timerPortAutoReadPeriodMs = 20;
     static constexpr int timerPortReplyTimeoutMs = 500;
@@ -55,6 +58,7 @@ private slots:
     void portReplyTimeout();
     void on_pushButtonUpdate_released();
     void on_pushButtonGenerate_released();
+    void on_pushButtonStop_released();
 
 private:
     Ui::MainWindow *ui;

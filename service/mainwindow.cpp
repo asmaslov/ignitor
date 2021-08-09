@@ -95,6 +95,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->spinBoxSpeedSet->setMinimum(METER_RPM_MIN);
     ui->spinBoxSpeedSet->setMaximum(METER_RPM_MAX);
+    ui->spinBoxSpeedSet->setSingleStep(METER_RPM_STEP);
 
     for (int i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
         timingsUi.append(createTimingUi(ui->gridLayoutTimings, QString("%1").arg(i + 1), i + 1));
@@ -108,8 +109,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&timerPortReply, SIGNAL(timeout()), this, SLOT(portReplyTimeout()));
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
     delete groupGenerator;
     delete groupPort;
@@ -117,8 +117,7 @@ MainWindow::~MainWindow()
     delete signalMapperPort;
 }
 
-void MainWindow::closeEvent(QCloseEvent* e)
-{
+void MainWindow::closeEvent(QCloseEvent* e) {
     timerPortSend.stop();
     timerPortAutoRead.stop();
     timerPortReply.stop();
@@ -132,6 +131,7 @@ void MainWindow::closeEvent(QCloseEvent* e)
         while (ltr35->isBusy()) {
             QThread::yieldCurrentThread();
         }
+        ltr35->setupOutputsOff();
         ltr35->close();
     }
     threadLtr35.quit();
@@ -139,8 +139,7 @@ void MainWindow::closeEvent(QCloseEvent* e)
     e->accept();
 }
 
-MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString name, int row)
-{
+MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString name, int row) {
     TimingUi uiTimings;
     int column = 0;
 
@@ -150,11 +149,12 @@ MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString nam
 
     uiTimings.rpm = new QSpinBox();
     uiTimings.rpm->setMaximum(METER_RPM_MAX);
+    uiTimings.rpm->setSingleStep(METER_RPM_STEP);
     layout->addWidget(uiTimings.rpm, row, column++);
 
     uiTimings.timing = new QSpinBox();
-    uiTimings.timing->setMinimum(METER_TIMING_UNDER_LOW);
-    uiTimings.timing->setMaximum(METER_TIMING_OVER_HIGH);
+    //uiTimings.timing->setMinimum(METER_TIMING_UNDER_LOW);
+    //uiTimings.timing->setMaximum(METER_TIMING_OVER_HIGH);
     connect(uiTimings.timing, SIGNAL(valueChanged(int)), signalMapperValue, SLOT(map()));
     signalMapperValue->setMapping(uiTimings.timing, row);
     layout->addWidget(uiTimings.timing, row, column++);
@@ -224,6 +224,7 @@ void MainWindow::setGenerator(const QString &generator) {
     ltr35->open(generator.split(':')[0], generator.split(':')[1].toInt());
     ui->spinBoxSpeedSet->setEnabled(true);
     ui->pushButtonGenerate->setEnabled(true);
+    ui->pushButtonStop->setEnabled(true);
 }
 
 void MainWindow::calcValue(int row) {
@@ -246,42 +247,43 @@ void MainWindow::portRead() {
                     crc += data[i];
                 }
                 if (crc == data[REMOTE_REPLY_PACKET_PART_CRC]) {
-                    if (REMOTE_PACKET_CMD_TYPE_GET == (data[REMOTE_REPLY_PACKET_PART_CMD] & REMOTE_PACKET_CMD_TYPE_MASK) >> REMOTE_PACKET_CMD_TYPE_SHFT) {
-                        if (REMOTE_PACKET_CMD_GET_RPM == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                            QString rpm = QString("%1").arg(qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]));
-                            if (ui->lineEditSpeedReal->text() != rpm) {
-                                ui->lineEditSpeedReal->setText(rpm);
-                            }
-                        } else if (REMOTE_PACKET_CMD_GET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                            uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
-                            uint16_t rpm = qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_2]);
-                            uint8_t value = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_1]);
-                            timingsUi[idx].rpm->setValue(rpm);
-                            timingsUi[idx].value->setText(QString("%1").arg(value));
-                            mutexRequest.lock();
-                            recordIdx++;
-                            if (METER_TIMING_RECORD_TOTAL_SLOTS == recordIdx) {
-                                recordIdx = 0;
-                                cmd = REMOTE_PACKET_CMD_GET_RPM;
-                                ui->statusbar->showMessage("Timings updated");
-                                lockTimings(false);
-                            }
-                            mutexRequest.unlock();
+                    if (REMOTE_PACKET_CMD_GET_RPM == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        QString rpm = QString("%1").arg(qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]));
+                        if (ui->lineEditSpeedReal->text() != rpm) {
+                            ui->lineEditSpeedReal->setText(rpm);
                         }
+                    } else if (REMOTE_PACKET_CMD_GET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
+                        uint16_t rpm = qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_2]);
+                        uint8_t value = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_1]);
+                        timingsUi[idx].rpm->setValue(rpm);
+                        timingsUi[idx].value->setText(QString("%1").arg(value));
+                        mutexRequest.lock();
+                        recordIdx++;
+                        if (METER_TIMING_RECORD_TOTAL_SLOTS == recordIdx) {
+                            recordIdx = 0;
+                            cmd = REMOTE_PACKET_CMD_GET_RPM;
+                            ui->statusbar->showMessage("Timings updated");
+                            lockTimings(false);
+                        }
+                        mutexRequest.unlock();
+                    } else if (REMOTE_PACKET_CMD_SET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
+                        mutexRequest.lock();
+                        recordIdx = idx + 1;
+                        if (METER_TIMING_RECORD_TOTAL_SLOTS == recordIdx) {
+                            recordIdx = 0;
+                            cmd = REMOTE_PACKET_CMD_APPLY_RECS;
+                            ui->statusbar->showMessage("Applying timings");
+                        }
+                        mutexRequest.unlock();
+                    } else if (REMOTE_PACKET_CMD_APPLY_RECS == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        mutexRequest.lock();
+                        cmd = REMOTE_PACKET_CMD_GET_RECORD;
+                        ui->statusbar->showMessage("Verifying timings");
+                        mutexRequest.unlock();
                     } else {
-                        if (REMOTE_PACKET_CMD_SET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                            uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
-                            mutexRequest.lock();
-                            recordIdx = idx + 1;
-                            if (METER_TIMING_RECORD_TOTAL_SLOTS == recordIdx) {
-                                recordIdx = 0;
-                                cmd = REMOTE_PACKET_CMD_GET_RECORD;
-                                ui->statusbar->showMessage("Verifying timings");
-                            }
-                            mutexRequest.unlock();
-                        } else {
-                            ui->statusbar->showMessage("Unknown");
-                        }
+                        ui->statusbar->showMessage("Unknown");
                     }
                     semaphoreTransmitComplete.release();
                 } else {
@@ -325,8 +327,7 @@ void MainWindow::portReplyTimeout() {
     semaphoreTransmitComplete.release();
 }
 
-void MainWindow::on_pushButtonUpdate_released()
-{
+void MainWindow::on_pushButtonUpdate_released() {
     bool allOk = true;
 
     for (int i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
@@ -346,20 +347,25 @@ void MainWindow::on_pushButtonUpdate_released()
     }
 }
 
-void MainWindow::on_pushButtonGenerate_released()
-{
+void MainWindow::on_pushButtonGenerate_released() {
+    if (ltr35->isReady()) {
+        if (!ltr35->isBusy()) {
+            if (!ltr35->setupRotorChannel(rotorSignalChannel)) {
+                return;
+            }
+        }
+        if (ui->spinBoxSpeedSet->value() != 0) {
+            if (ltr35->setupRotorSignal(rotorSignalAmplitude, (double)ui->spinBoxSpeedSet->value() / 60.0)) {
+                QMetaObject::invokeMethod(ltr35.data(), "start", Qt::QueuedConnection);
+            }
+        }
+    }
+}
+
+void MainWindow::on_pushButtonStop_released() {
     if (ltr35->isReady()) {
         if (ltr35->isBusy()) {
             QMetaObject::invokeMethod(ltr35.data(), "stop", Qt::QueuedConnection);
-        }
-        while (ltr35->isBusy()) {
-            QThread::yieldCurrentThread();
-        }
-        //TODO: Setup all parameters
-        if (ui->spinBoxSpeedSet->value() != 0) {
-            if (ltr35->setupRotorSignal(0, false, 1.0, (double)ui->spinBoxSpeedSet->value() / 60.0)) {
-                QMetaObject::invokeMethod(ltr35.data(), "start", Qt::QueuedConnection);
-            }
         }
     }
 }

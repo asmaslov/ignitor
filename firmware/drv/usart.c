@@ -46,7 +46,6 @@ static inline bool dataRegisterEmpty(UsartIndex index) {
         #ifdef UCSR1A
         case USART_1:
             return DATA_REGISTER_EMPTY_1;
-            break;
         #endif
         default:
             return false;
@@ -137,7 +136,7 @@ ISR(USART1_TX_vect) {
  ****************************************************************************/
 
 bool usart_init(Usart *usart, const UsartIndex index, const uint32_t baudrate) {
-    //TODO: use setbaud.h
+    //TODO: Use setbaud.h
     usart->index = index;
     usart->rxBufferIndexRead = 0;
     usart->rxBufferIndexWrite = 0;
@@ -195,10 +194,8 @@ void usart_putstr(Usart *usart, const char *str) {
 }
 
 const uint8_t usart_getchar(Usart *usart) {
-    uint8_t data = UCHAR_MAX;
-
     while (0 == usart->rxBufferCount);
-    data = usart->rxBuffer[usart->rxBufferIndexRead++];
+    const uint8_t data = usart->rxBuffer[usart->rxBufferIndexRead++];
     if (USART_BUFFER_SIZE == usart->rxBufferIndexRead) {
         usart->rxBufferIndexRead = 0;
     }

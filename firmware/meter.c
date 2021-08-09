@@ -13,13 +13,12 @@
 EEMEM MeterTimingRecord recordsEeprom[METER_TIMING_RECORD_TOTAL_SLOTS];
 
 static MeterTimingRecord records[METER_TIMING_RECORD_TOTAL_SLOTS];
-static MeterTimingRecord undefined = { .rpm = UINT16_MAX, .value = UINT8_MAX };
 static MeterSparkHandler handler;
 static Timer timer0, timer1;
-static uint8_t tickIndex, index2, index4;
+static uint8_t tickIndex, indexes[METER_TICKS];
 static uint32_t ticks[METER_TICKS];
-static bool captured, busy;
 static uint16_t rpm;
+static volatile bool captured;
 
 /****************************************************************************
  * Public types/enumerations/variables                                      *
@@ -52,17 +51,17 @@ static void pwm(TimerEvent event) {
 static void ready(uint32_t result) {
     if (result < METER_SENSIBLE_VALUE_MAX) {
         ticks[tickIndex] = result;
-        if (captured && !busy) {
-            busy = true;
+        if (captured) {
             uint32_t tickSum = 0;
             for (uint8_t i = 0; i < METER_TICKS; i++) {
                 tickSum += ticks[i];
             }
             uint32_t rps = METER_FREQUENCY_HZ / tickSum;
             rpm = rps * 60;
-            if ((tickIndex == index2) || (tickIndex == index4)) {
+            if ((tickIndex == indexes[1]) || (tickIndex == indexes[3])) {
                 nextSpark =
-                        (tickIndex == index2) ? METER_SPARK_1 : METER_SPARK_0;
+                        (tickIndex == indexes[1]) ?
+                                METER_SPARK_1 : METER_SPARK_0;
                 if (timer_configPwm(&timer0, TIMER_0, rps * METER_TICKS,
                                     TIMER_PWM_MODE_FAST,
                                     METER_SPARK_PWM_DUTY,
@@ -73,7 +72,6 @@ static void ready(uint32_t result) {
             if (METER_TICKS == ++tickIndex) {
                 tickIndex = 0;
             }
-            busy = false;
         } else {
             if (METER_TICKS == ++tickIndex) {
                 tickIndex = 0;
@@ -81,15 +79,16 @@ static void ready(uint32_t result) {
                 for (uint8_t i = 0; i < METER_TICKS; i++) {
                     if (ticks[i] < min) {
                         min = ticks[i];
-                        index2 = i;
-                        index4 = (i + 2) % METER_TICKS;
+                        indexes[1] = i;
                     }
                 }
+                indexes[0] = (indexes[1] + 3) % METER_TICKS;
+                indexes[2] = (indexes[1] + 1) % METER_TICKS;
+                indexes[3] = (indexes[1] + 2) % METER_TICKS;
                 captured = true;
             }
         }
     } else {
-        tickIndex = 0;
         captured = false;
     }
 }
@@ -106,15 +105,10 @@ void meter_init(MeterSparkHandler sparkHandler) {
     handler = sparkHandler;
     DDRD |= (1 << DDD5) | (1 << DDD6);
     PORTD |= (1 << PD5) | (1 << PD6);
+    meter_applyTimings();
     if (timer_configMeter(&timer1, TIMER_1, METER_FREQUENCY_HZ, ready)) {
         timer_run(&timer1, 0);
     }
-    for (uint8_t i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
-
-    }
-    eeprom_read_block(
-            records, recordsEeprom,
-            sizeof(MeterTimingRecord) * METER_TIMING_RECORD_TOTAL_SLOTS);
     EICRA = (0 << ISC11) | (0 << ISC10) | (1 << ISC01) | (0 << ISC00);
     EIMSK = (0 << INT1) | (1 << INT0);
     tickIndex = 0;
@@ -128,18 +122,19 @@ uint16_t meter_getRpm(void) {
 }
 
 MeterTimingRecord *getTimingRecord(uint8_t slot) {
-    if (slot < METER_TIMING_RECORD_TOTAL_SLOTS) {
-        return &records[slot];
-    }
-    return &undefined;
+    return &records[slot];
 }
 
 void meter_setTimingRecord(uint8_t slot, const uint16_t rpm,
                            const uint8_t value) {
-    if (slot < METER_TIMING_RECORD_TOTAL_SLOTS) {
-        records[slot].rpm = rpm;
-        records[slot].value = value;
-        eeprom_update_block(records + slot, recordsEeprom + slot,
-                            sizeof(MeterTimingRecord));
-    }
+    records[slot].rpm = rpm;
+    records[slot].value = value;
+    eeprom_update_block(records + slot, recordsEeprom + slot,
+                        sizeof(MeterTimingRecord));
+}
+
+void meter_applyTimings(void) {
+    eeprom_read_block(
+            records, recordsEeprom,
+            sizeof(MeterTimingRecord) * METER_TIMING_RECORD_TOTAL_SLOTS);
 }

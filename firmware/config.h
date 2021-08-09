@@ -1,6 +1,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+//TODO: Need to lower F_CPU
 #ifndef F_CPU
     #define F_CPU  20000000
 #endif

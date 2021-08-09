@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #define METER_RPM_MIN     100
+#define METER_RPM_STEP     50
 #define METER_RPM_LOW    1650
 #define METER_RPM_HIGH   3500
 #define METER_RPM_MAX   13000
@@ -38,5 +39,6 @@ uint16_t meter_getRpm(void);
 MeterTimingRecord *getTimingRecord(uint8_t slot);
 void meter_setTimingRecord(uint8_t slot, const uint16_t rpm,
                            const uint8_t value);
+void meter_applyTimings(void);
 
 #endif /* METER_H_ */

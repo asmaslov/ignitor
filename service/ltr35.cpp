@@ -62,7 +62,7 @@ bool Ltr35::close() {
     return true;
 }
 
-bool Ltr35::setupRotorSignal(int channel, bool div, double amplitude, double frequency) {
+bool Ltr35::setupRotorChannel(int channel) {
     INT err;
 
     for (uint i = 0; i < ltr35.ModuleInfo.DacChCnt; i++)
@@ -71,23 +71,18 @@ bool Ltr35::setupRotorSignal(int channel, bool div, double amplitude, double fre
     }
     sigs.clear();
 
-    TLTR35_CHANNEL_CONFIG cfgCh;
-    cfgCh.Enabled = (BOOLEAN)true;
-    cfgCh.Source = LTR35_CH_SRC_SDRAM;
-
     Ltr35::Signal sig;
     sig.channel = channel;
     sig.shape = Ltr35::SignalShape::SIGNAL_SHAPE_ROTOR;
-    sig.amplitude = amplitude;
-    sig.frequency = frequency;
+    sig.amplitude = 0;
+    sig.frequency = 0;
     sig.offset = 0;
     sigs.append(sig);
 
-    if (div) {
-        cfgCh.Output = LTR35_DAC_OUT_DIV_RANGE;
-    } else {
-        cfgCh.Output = LTR35_DAC_OUT_FULL_RANGE;
-    }
+    TLTR35_CHANNEL_CONFIG cfgCh;
+    cfgCh.Enabled = (BOOLEAN)true;
+    cfgCh.Source = LTR35_CH_SRC_SDRAM;
+    cfgCh.Output = LTR35_DAC_OUT_FULL_RANGE;
     ltr35.Cfg.Ch[channel] = cfgCh;
 
     ltr35.Cfg.OutMode = LTR35_OUT_MODE_CYCLE;
@@ -99,12 +94,22 @@ bool Ltr35::setupRotorSignal(int channel, bool div, double amplitude, double fre
         qCritical("Failed to set DAC settings: Error %d (%s)", err, LTR35_GetErrorString(err));
         return false;
     }
-    timeoutMs = generateSamples(true);
-    if (0 == timeoutMs)
-    {
-        return false;
-    }
     return true;
+}
+
+bool Ltr35::setupRotorSignal(double amplitude, double frequency) {
+    if (Ltr35::SignalShape::SIGNAL_SHAPE_ROTOR == sigs.last().shape) {
+        sigs.last().amplitude = amplitude;
+        sigs.last().frequency = frequency;
+        sigs.last().offset = 0;
+        timeoutMs = generateSamples(true);
+        if (0 == timeoutMs)
+        {
+            return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 bool Ltr35::setupOutputsOff()
@@ -360,7 +365,7 @@ bool Ltr35::start()
                 QThread::yieldCurrentThread();
             }
         } else {
-            err = LTR35_SwitchCyclePage(&ltr35, 0, 0);
+            err = LTR35_SwitchCyclePage(&ltr35, 0, sendSystemTimeoutMs);
             if (err != LTR_OK) {
                 qCritical("Failed to start generating data in circular mode! Error %d (%s)", err, LTR35_GetErrorString(err));
                 return false;
@@ -368,9 +373,17 @@ bool Ltr35::start()
             busy.release();
         }
         return true;
+    } else {
+        if (LTR35_OUT_MODE_CYCLE == ltr35.Cfg.OutMode) {
+            err = LTR35_SwitchCyclePage(&ltr35, 0, sendSystemTimeoutMs);
+            if (err != LTR_OK) {
+                qCritical("Failed to start generating data in circular mode! Error %d (%s)", err, LTR35_GetErrorString(err));
+                return false;
+            }
+            return true;
+        }
+        return false;
     }
-    qWarning("The module is already running");
-    return false;
 }
 
 bool Ltr35::isBusy() {

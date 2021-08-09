@@ -4,7 +4,6 @@
 #include "meter.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/atomic.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -42,12 +41,16 @@ static void watchdog_init(void)
 int main(void)
 {
     sei();
+#ifdef REMOTE
     remote_init();
+#endif
     watchdog_init();
     sparks_init();
     meter_init(sparks_ignite);
     while (true) {
+#ifdef REMOTE
         remote_work();
+#endif
     }
     return 0;
 }

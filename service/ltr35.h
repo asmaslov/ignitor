@@ -25,7 +25,7 @@ public:
         SIGNAL_SHAPE_ROTOR
     };
 
-    static constexpr int sendSystemTimeoutMs = 10000;
+    static constexpr int sendSystemTimeoutMs = 20000;
 
     static constexpr int samplesCycleTotal = LTR35_MAX_POINTS_PER_PAGE;
     static constexpr int samplesLoadedTotal = (128 * 1024 * 1024);
@@ -47,7 +47,8 @@ public:
     bool open(const QString &crateSerialNumber, const int slotNumber);
     bool isReady();
     bool close();
-    bool setupRotorSignal(int channel, bool div, double amplitude, double frequency);
+    bool setupRotorChannel(int channel);
+    bool setupRotorSignal(double amplitude, double frequency);
     bool setupOutputsOff();
     bool generateSamples(bool cycle);
     bool isBusy();

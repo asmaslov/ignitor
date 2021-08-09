@@ -48,7 +48,7 @@ typedef struct {
     TimerHandler handler;
     TimerResultHandler resultHandler;
     uint8_t clockSelect;
-    uint32_t overflowCount;
+    uint8_t overflowCount;
 } Timer;
 
 bool timer_configSimple(Timer *timer, const TimerIndex index,
