@@ -41,14 +41,13 @@ typedef enum TIMER_EVENT {
 } TimerEvent;
 
 typedef void (*TimerHandler)(TimerEvent event);
-typedef void (*TimerResultHandler)(uint32_t result);
+typedef void (*TimerResultHandler)(uint16_t result);
 
 typedef struct {
     TimerIndex index;
     TimerHandler handler;
     TimerResultHandler resultHandler;
     uint8_t clockSelect;
-    uint8_t overflowCount;
 } Timer;
 
 bool timer_configSimple(Timer *timer, const TimerIndex index,
@@ -61,7 +60,7 @@ void timer_configCounter(Timer *timer, const TimerIndex index,
                          const TimerInput input, const uint16_t top,
                          const TimerHandler handler, const TimerOutput out);
 bool timer_configMeter(Timer *timer, const TimerIndex index,
-                       const uint32_t freq,
+                       const uint32_t freq, const TimerHandler handler,
                        const TimerResultHandler resultHandler);
 void timer_run(Timer *timer, uint16_t start);
 void timer_stop(Timer *timer);

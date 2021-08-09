@@ -4,21 +4,24 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define METER_RPM_MIN     100
-#define METER_RPM_STEP     50
-#define METER_RPM_LOW    1650
-#define METER_RPM_HIGH   3500
-#define METER_RPM_MAX   13000
+#define METER_RPM_MIN    180
+#define METER_RPM_STEP    60
+#define METER_RPM_LOW   1620
+#define METER_RPM_HIGH  3480
+#define METER_RPM_MAX   5100
 
 #define METER_TIMING_RECORD_TOTAL_SLOTS  11
 
 #define METER_TIMING_UNDER_LOW  5
 #define METER_TIMING_OVER_HIGH  30
 
-#define METER_FREQUENCY_HZ  (F_CPU / 64)
-#define METER_SENSIBLE_VALUE_MAX  (2 * UINT16_MAX)
 #define METER_TICKS  4
-#define METER_SPARK_PWM_DUTY  10
+#define METER_SENSE_CYCLES  2
+#define METER_SPARK_PWM_DUTY  90
+
+#define METER_FREQUENCY_HZ  (F_CPU / 64)
+#define METER_SENSIBLE_RPS_MIN  8  // (F_CPU / (METER_TICKS * 1024 * (UINT8_MAX + 1)))
+#define METER_SENSIBLE_VALUE_MAX  (2 * UINT16_MAX)
 
 typedef enum METER_SPARK {
     METER_SPARK_0 = 0,

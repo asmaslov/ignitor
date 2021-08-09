@@ -1,6 +1,6 @@
 PRJ = ignitor
 MCU = atmega48
-F_CPU = 20000000
+F_CPU = 8000000
 
 RM = rm -rf
 MKDIR = mkdir -p

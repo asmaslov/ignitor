@@ -1,6 +1,5 @@
 #include "timer.h"
 #include "config.h"
-#include "remote.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stddef.h>
@@ -110,9 +109,6 @@ ISR(TIMER0_OVF_vect) {
         if (timer0->handler) {
             timer0->handler(TIMER_EVENT_OVERFLOW);
         }
-        if (timer0->overflowCount < UINT8_MAX) {
-            timer0->overflowCount++;
-        }
     }
 }
 #endif
@@ -137,10 +133,8 @@ ISR(TIMER1_COMPB_vect) {
 ISR(TIMER1_CAPT_vect) {
     TCNT1 = 0;
     if (timer1) {
-        uint32_t count = timer1->overflowCount;
-        timer1->overflowCount = 0;
         if (timer1->resultHandler) {
-            timer1->resultHandler(ICR1 + count * UINT16_MAX);
+            timer1->resultHandler(ICR1);
         }
     }
 }
@@ -149,9 +143,6 @@ ISR(TIMER1_OVF_vect) {
     if (timer1) {
         if (timer1->handler) {
             timer1->handler(TIMER_EVENT_OVERFLOW);
-        }
-        if (timer1->overflowCount < UINT8_MAX) {
-            timer1->overflowCount++;
         }
     }
 }
@@ -178,9 +169,6 @@ ISR(TIMER2_OVF_vect) {
     if (timer2) {
         if (timer2->handler) {
             timer2->handler(TIMER_EVENT_OVERFLOW);
-        }
-        if (timer2->overflowCount < UINT8_MAX) {
-            timer2->overflowCount++;
         }
     }
 }
@@ -244,8 +232,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR2A
 #ifdef TIMER_SIMPLE_2
         case TIMER_2:
-            if (!calc(timer->index, freq, prescale2, dv2,
-                      &timer->clockSelect, UINT8_MAX, &ocr)) {
+            if (!calc(timer->index, freq, prescale2, dv2, &timer->clockSelect,
+                      UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -272,6 +260,7 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                      const TimerPwmMode mode, const uint16_t duty,
                      const TimerHandler handler, const TimerOutput out) {
+    const uint8_t div = (TIMER_PWM_MODE_FAST == mode) ? 2 : 1;
     uint8_t wgm;
     uint16_t ocr;
 
@@ -281,9 +270,8 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR0A
 #ifdef TIMER_PWM_0
         case TIMER_0:
-            if (!calc(timer->index, freq, prescale01, dv01,
-                      &timer->clockSelect, UINT8_MAX, &ocr))
-            {
+            if (!calc(timer->index, freq / div, prescale01, dv01,
+                      &timer->clockSelect, UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -303,7 +291,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                 OCR0A = (uint8_t)ocr;
                 TIMSK0 = (1 << OCIE0A) | (1 << OCIE0B);
             }
-            OCR0B = (uint8_t)(ocr * duty / 100);
+            OCR0B = (uint8_t)((uint32_t)ocr * duty / 100);
             TCCR0A = ((out & 0xF) << COM0B0) | ((wgm & 0x3) << WGM00);
             TCCR0B = (0 << FOC0A) | (0 << FOC0B)
                     | (((wgm >> 2) & 0x1) << WGM02);
@@ -314,8 +302,8 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR1A
 #ifdef TIMER_PWM_1
             case TIMER_1:
-            if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                            TIMER_1_PWM_TOP10, &ocr)) {
+            if (!calc(timer->index, freq / div, prescale01, dv01,
+                            &timer->clockSelect, TIMER_1_PWM_TOP10, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -335,7 +323,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                 OCR1A = ocr;
                 TIMSK1 = (1 << OCIE1A) | (1 << OCIE1B);
             }
-            OCR0B = ocr * duty / 100;
+            OCR1B = (uint16_t)((uint32_t)ocr * duty / 100);
             TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
             TCCR1B = (0 << ICNC1) | (0 << ICES1)
             | (((wgm >> 2) & 0x3) << WGM12);
@@ -347,8 +335,8 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR2A
 #ifdef TIMER_PWM_2
             case TIMER_2:
-            if (!calc(timer->index, freq, prescale2, dv2, &timer->clockSelect,
-                            UINT8_MAX, &ocr)) {
+            if (!calc(timer->index, freq / div, prescale2, dv2,
+                            &timer->clockSelect, UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -368,7 +356,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                 OCR2A = (uint8_t)ocr;
                 TIMSK2 = (1 << OCIE2A) | (1 << OCIE2B);
             }
-            OCR0B = (uint8_t)(ocr * duty / 100);
+            OCR0B = (uint8_t)((uint32_t)ocr * duty / 100);
             TCCR2A = ((out & 0xF) << COM2B0) | ((wgm & 0x3) << WGM20);
             TCCR2B = (0 << FOC2A) | (0 << FOC2B)
             | (((wgm >> 2) & 0x1) << WGM22);
@@ -462,15 +450,17 @@ void timer_configCounter(Timer *timer, const TimerIndex index,
 }
 
 bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
+                       const TimerHandler handler,
                        TimerResultHandler resultHandler) {
     timer->index = index;
+    timer->handler = handler;
     timer->resultHandler = resultHandler;
     switch (index) {
 #ifdef TCCR1A
 #ifdef TIMER_METER_1
         case TIMER_1:
-            if (!calc(timer->index, freq, prescale01, dv01,
-                      &timer->clockSelect, 0, NULL)) {
+            if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
+                      0, NULL)) {
                 return false;
             }
             TIMSK1 = (1 << ICIE1) | (1 << TOIE1);
@@ -490,21 +480,18 @@ void timer_run(Timer *timer, uint16_t start) {
     switch (timer->index) {
 #ifdef TCCR0A
         case TIMER_0:
-            timer->overflowCount = 0;
             TCNT0 = (uint8_t)start;
             TCCR0B |= ((timer->clockSelect & 0x7) << CS00);
             break;
 #endif
 #ifdef TCCR1A
         case TIMER_1:
-            timer->overflowCount = 0;
             TCNT1 = start;
             TCCR1B |= ((timer->clockSelect & 0x7) << CS10);
             break;
 #endif
 #ifdef TCCR2A
         case TIMER_2:
-            timer->overflowCount = 0;
             TCNT2 = (uint8_t)start;
             TCCR2B |= ((timer->clockSelect & 0x7) << CS20);
             break;
@@ -519,16 +506,19 @@ void timer_stop(Timer *timer) {
 #ifdef TCCR0A
         case TIMER_0:
             TCCR0B &= ~(0x7 << CS00);
+            TIFR0 = (1 << OCF0B) | (1 << OCF0A) | (1 << TOV0);
             break;
 #endif
 #ifdef TCCR1A
         case TIMER_1:
             TCCR1B &= ~(0x7 << CS10);
+            TIFR1 = (1 << ICF1) | (1 << OCF1B) | (1 << OCF1A) | (1 << TOV1);
             break;
 #endif
 #ifdef TCCR2A
         case TIMER_2:
             TCCR2B &= ~(0x7 << CS20);
+            TIFR2 = (1 << OCF2B) | (1 << OCF2A) | (1 << TOV2);
             break;
 #endif
         default:

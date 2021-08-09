@@ -1,6 +1,8 @@
 #include "config.h"
 #include "timer.h"
+#ifdef REMOTE
 #include "remote.h"
+#endif
 #include "meter.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>

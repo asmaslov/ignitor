@@ -93,7 +93,6 @@ MainWindow::MainWindow(QWidget *parent)
         LTR_Close(&ltrServer);
     }
 
-    ui->spinBoxSpeedSet->setMinimum(METER_RPM_MIN);
     ui->spinBoxSpeedSet->setMaximum(METER_RPM_MAX);
     ui->spinBoxSpeedSet->setSingleStep(METER_RPM_STEP);
 

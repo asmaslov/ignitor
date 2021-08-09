@@ -1,9 +1,8 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-//TODO: Need to lower F_CPU
 #ifndef F_CPU
-    #define F_CPU  20000000
+    #define F_CPU  8000000
 #endif
 
 #define WD_RESET_FREQ_HZ  126
