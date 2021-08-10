@@ -24,8 +24,8 @@
 #define METER_SENSIBLE_VALUE_MAX  (2 * UINT16_MAX)
 
 typedef enum METER_SPARK {
-    METER_SPARK_0 = 0,
-    METER_SPARK_1 = 1
+    METER_SPARK_FRONT = 0,
+    METER_SPARK_BACK = 1
 } MeterSpark;
 
 typedef struct _MeterTimingRecord {
@@ -35,7 +35,7 @@ typedef struct _MeterTimingRecord {
 
 typedef void (*MeterSparkHandler)(MeterSpark spark, bool on);
 
-extern MeterSpark nextSpark;
+extern MeterSpark spark;
 
 void meter_init(MeterSparkHandler sparkHandler);
 uint16_t meter_getRpm(void);

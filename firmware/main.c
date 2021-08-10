@@ -18,17 +18,17 @@ static void sparks_init(void) {
 }
 
 static void sparks_ignite(MeterSpark spark, bool on) {
-    if (METER_SPARK_0 == spark) {
+    if (METER_SPARK_FRONT == spark) {
         if (on) {
-            PORTC &= ~(1 << PC2);
-        } else {
             PORTC |= (1 << PC2);
-        }
-    } else if (METER_SPARK_1 == spark) {
-        if (on) {
-            PORTC &= ~(1 << PC3);
         } else {
+            PORTC &= ~(1 << PC2);
+        }
+    } else if (METER_SPARK_BACK == spark) {
+        if (on) {
             PORTC |= (1 << PC3);
+        } else {
+            PORTC &= ~(1 << PC3);
         }
     }
 }

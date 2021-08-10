@@ -62,7 +62,7 @@ static Timer *timer2;
  * Private functions                                                        *
  ****************************************************************************/
 
-static bool calc(const TimerIndex index, const uint32_t freq,
+static bool calc(const TimerIndex index, const uint32_t freq, const bool half,
                  const uint16_t *prescale, const uint8_t dm, uint8_t *dv,
                  uint16_t max, uint16_t *ocr) {
     uint16_t tmp;
@@ -75,7 +75,7 @@ static bool calc(const TimerIndex index, const uint32_t freq,
     }
     *dv = 0;
     do {
-        *ocr = F_CPU / (((ocr != &tmp) ? 2 : 1) * prescale[(*dv)++] * freq) - 1;
+        *ocr = F_CPU / ((half ? 2 : 1) * prescale[(*dv)++] * freq) - 1;
     } while ((*ocr > max) && (*dv < dm));
     if ((*ocr > max) && (dm == *dv)) {
         return false;
@@ -189,8 +189,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR0A
 #ifdef TIMER_SIMPLE_0
         case TIMER_0:
-        if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                        UINT8_MAX, &ocr)) {
+        if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE), prescale01,
+                  dv01, &timer->clockSelect, UINT8_MAX, &ocr)) {
             return false;
         }
         if (0 == ocr) {
@@ -210,7 +210,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR1A
 #ifdef TIMER_SIMPLE_1
         case TIMER_1:
-        if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
+        if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE), prescale01,
+                  dv01, &timer->clockSelect,
                         UINT16_MAX, &ocr)) {
             return false;
         }
@@ -232,8 +233,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR2A
 #ifdef TIMER_SIMPLE_2
         case TIMER_2:
-            if (!calc(timer->index, freq, prescale2, dv2, &timer->clockSelect,
-                      UINT8_MAX, &ocr)) {
+            if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE),
+                      prescale2, dv2, &timer->clockSelect, UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -260,7 +261,6 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                      const TimerPwmMode mode, const uint16_t duty,
                      const TimerHandler handler, const TimerOutput out) {
-    const uint8_t div = (TIMER_PWM_MODE_FAST == mode) ? 2 : 1;
     uint8_t wgm;
     uint16_t ocr;
 
@@ -270,8 +270,8 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR0A
 #ifdef TIMER_PWM_0
         case TIMER_0:
-            if (!calc(timer->index, freq / div, prescale01, dv01,
-                      &timer->clockSelect, UINT8_MAX, &ocr)) {
+            if (!calc(timer->index, freq, (TIMER_PWM_MODE_FAST != mode),
+                      prescale01, dv01, &timer->clockSelect, UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -302,8 +302,9 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR1A
 #ifdef TIMER_PWM_1
             case TIMER_1:
-            if (!calc(timer->index, freq / div, prescale01, dv01,
-                            &timer->clockSelect, TIMER_1_PWM_TOP10, &ocr)) {
+            if (!calc(timer->index, freq, (TIMER_PWM_MODE_FAST != mode),
+                      prescale01, dv01, &timer->clockSelect, TIMER_1_PWM_TOP10,
+                      &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -335,8 +336,8 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
 #ifdef TCCR2A
 #ifdef TIMER_PWM_2
             case TIMER_2:
-            if (!calc(timer->index, freq / div, prescale2, dv2,
-                            &timer->clockSelect, UINT8_MAX, &ocr)) {
+            if (!calc(timer->index, freq, (TIMER_PWM_MODE_FAST != mode),
+                      prescale2, dv2, &timer->clockSelect, UINT8_MAX, &ocr)) {
                 return false;
             }
             if (0 == ocr) {
@@ -459,8 +460,8 @@ bool timer_configMeter(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR1A
 #ifdef TIMER_METER_1
         case TIMER_1:
-            if (!calc(timer->index, freq, prescale01, dv01, &timer->clockSelect,
-                      0, NULL)) {
+            if (!calc(timer->index, freq, false, prescale01, dv01,
+                      &timer->clockSelect, 0, NULL)) {
                 return false;
             }
             TIMSK1 = (1 << ICIE1) | (1 << TOIE1);

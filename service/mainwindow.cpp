@@ -47,10 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(signalMapperGenerator, SIGNAL(mapped(const QString &)), this, SLOT(setGenerator(const QString &)));
     memset(csn, 0, sizeof(BYTE) * LTR_CRATES_MAX * LTR_CRATE_SERIAL_SIZE);
     if (LTR_IsOpened(&ltrServer) != LTR_OK) {
-        if (LTR_OpenSvcControl(&ltrServer, LTRD_ADDR_DEFAULT, LTRD_PORT_DEFAULT) != LTR_OK)
-        {
-            qCritical("There is no connection with the service");
-        }
+        LTR_OpenSvcControl(&ltrServer, LTRD_ADDR_DEFAULT, LTRD_PORT_DEFAULT);
     }
     if (LTR_IsOpened(&ltrServer) == LTR_OK)
     {

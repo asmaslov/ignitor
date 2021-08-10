@@ -18,7 +18,7 @@ static MeterTimingRecord records[METER_TIMING_RECORD_TOTAL_SLOTS];
 static MeterSparkHandler handler;
 static Timer timer0, timer1;
 static volatile uint8_t tickIndex;
-static uint8_t  senseIndex, indexes[METER_TICKS];
+static uint8_t senseIndex, indexes[METER_TICKS];
 static uint32_t ticks[METER_TICKS];
 static uint16_t rpm;
 static volatile bool captured;
@@ -27,7 +27,7 @@ static volatile bool captured;
  * Public types/enumerations/variables                                      *
  ****************************************************************************/
 
-MeterSpark nextSpark;
+MeterSpark spark;
 
 /****************************************************************************
  * Private functions                                                        *
@@ -44,11 +44,16 @@ static int8_t getValue(uint32_t recordRpm) {
 
 static void pwm(TimerEvent event) {
     if (TIMER_EVENT_COMPARE_B == event) {
-        handler(nextSpark, true);
+        handler(spark, true);
     } else {
         timer_stop(&timer0);
-        handler(nextSpark, false);
+        handler(spark, false);
     }
+}
+
+static void off(TimerEvent event) {
+    timer_stop(&timer0);
+    handler(spark, false);
 }
 
 static void ready(uint16_t result) {
@@ -61,20 +66,27 @@ static void ready(uint16_t result) {
             }
             uint32_t rps = METER_FREQUENCY_HZ / tickSum;
             rpm = rps * 60;
-            nextSpark =
-                    (tickIndex == indexes[1]) ?
-                            METER_SPARK_1 : METER_SPARK_0;
-            if (rps < METER_SENSIBLE_RPS_MIN) {
-                //TODO: Make delayed PWM start for slow speed
-            } else {
-                //FIXME: When RPM is down from 1860 to 1800 detected PWM freeze
-                timer_stop(&timer0);
-                if (timer_configPwm(&timer0, TIMER_0, rps * METER_TICKS,
-                                    TIMER_PWM_MODE_FAST, METER_SPARK_PWM_DUTY,
-                                    pwm, TIMER_OUTPUT_NONE)) {
-                    timer_run(&timer0, getValue(rpm));
-                }
+            spark = (tickIndex == indexes[1]) ?
+                    METER_SPARK_FRONT : METER_SPARK_BACK;
+
+            //NOTE: Experimental code
+            if (timer_configSimple(&timer0, TIMER_0, 200,
+                                   off, TIMER_OUTPUT_NONE)) {
+                handler(spark, true);
+                timer_run(&timer0, 0);
             }
+
+            /*if (rps < METER_SENSIBLE_RPS_MIN) {
+             //TODO: Make delayed PWM start for slow speed
+             } else {
+             //FIXME: When RPM is down from 1860 to 1800 detected PWM freeze
+             timer_stop(&timer0);
+             if (timer_configPwm(&timer0, TIMER_0, rps * METER_TICKS,
+             TIMER_PWM_MODE_FAST, METER_SPARK_PWM_DUTY,
+             pwm, TIMER_OUTPUT_NONE)) {
+             timer_run(&timer0, getValue(rpm));
+             }
+             }*/
         }
         if (METER_TICKS == ++tickIndex) {
             tickIndex = 0;
