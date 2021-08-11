@@ -189,45 +189,48 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 #ifdef TCCR0A
 #ifdef TIMER_SIMPLE_0
         case TIMER_0:
-        if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE), prescale01,
-                  dv01, &timer->clockSelect, UINT8_MAX, &ocr)) {
-            return false;
-        }
-        if (0 == ocr) {
-            wgm = TIMER02_WGM_NORMAL;
-            TIMSK0 = (1 << TOIE0);
-        } else {
-            wgm = TIMER02_WGM_CTC_OCR;
-            OCR0A = (uint8_t)ocr;
-            TIMSK0 = (1 << OCIE0A);
-        }
-        TCCR0A = ((out & 0xF) << COM0B0) | ((wgm & 0x3) << WGM00);
-        TCCR0B = (0 << FOC0A) | (0 << FOC0B) | (0 << WGM02);
-        timer0 = timer;
-        return true;
+            if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE),
+                      prescale01, dv01, &timer->clockSelect, UINT8_MAX, &ocr)) {
+                return false;
+            }
+            if (0 == ocr) {
+                wgm = TIMER02_WGM_NORMAL;
+                timer->maxValue = UINT8_MAX - 1;
+                TIMSK0 = (1 << TOIE0);
+            } else {
+                wgm = TIMER02_WGM_CTC_OCR;
+                OCR0A = (uint8_t)ocr;
+                timer->maxValue = OCR0A - 1;
+                TIMSK0 = (1 << OCIE0A);
+            }
+            TCCR0A = ((out & 0xF) << COM0B0) | ((wgm & 0x3) << WGM00);
+            TCCR0B = (0 << FOC0A) | (0 << FOC0B) | (0 << WGM02);
+            timer0 = timer;
+            return true;
 #endif
 #endif
 #ifdef TCCR1A
 #ifdef TIMER_SIMPLE_1
         case TIMER_1:
-        if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE), prescale01,
-                  dv01, &timer->clockSelect,
-                        UINT16_MAX, &ocr)) {
-            return false;
-        }
-        if (0 == ocr) {
-            wgm = TIMER1_WGM_NORMAL;
-            TIMSK1 = (1 << TOIE1);
-        } else {
-            wgm = TIMER1_WGM_CTC_OCR;
-            OCR1A = ocr;
-            TIMSK1 = (1 << OCIE1A);
-        }
-        TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
-        TCCR1B = (0 << ICNC1) | (0 << ICES1) | (0 << WGM12);
-        TCCR1C = (0 << FOC1A) | (0 << FOC1B);
-        timer1 = timer;
-        return true;
+            if (!calc(timer->index, freq, (out != TIMER_OUTPUT_NONE),
+                      prescale01, dv01, &timer->clockSelect, UINT16_MAX, &ocr)) {
+                return false;
+            }
+            if (0 == ocr) {
+                wgm = TIMER1_WGM_NORMAL;
+                timer->maxValue = UINT16_MAX - 1;
+                TIMSK1 = (1 << TOIE1);
+            } else {
+                wgm = TIMER1_WGM_CTC_OCR;
+                OCR1A = ocr;
+                timer->maxValue = OCR1A - 1;
+                TIMSK1 = (1 << OCIE1A);
+            }
+            TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
+            TCCR1B = (0 << ICNC1) | (0 << ICES1) | (0 << WGM12);
+            TCCR1C = (0 << FOC1A) | (0 << FOC1B);
+            timer1 = timer;
+            return true;
 #endif
 #endif
 #ifdef TCCR2A
@@ -239,10 +242,12 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
             }
             if (0 == ocr) {
                 wgm = TIMER02_WGM_NORMAL;
+                timer->maxValue = UINT8_MAX - 1;
                 TIMSK2 = (1 << TOIE2);
             } else {
                 wgm = TIMER02_WGM_CTC_OCR;
                 OCR2A = (uint8_t)ocr;
+                timer->maxValue = OCR2A - 1;
                 TIMSK2 = (1 << OCIE2A);
             }
             TCCR2A = ((out & 0xF) << COM2B0) | ((wgm & 0x3) << WGM20);
@@ -261,8 +266,8 @@ bool timer_configSimple(Timer *timer, TimerIndex index, uint32_t freq,
 bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                      const TimerPwmMode mode, const uint16_t duty,
                      const TimerHandler handler, const TimerOutput out) {
-    uint8_t wgm;
     uint16_t ocr;
+    uint8_t wgm;
 
     timer->index = index;
     timer->handler = handler;
@@ -291,6 +296,7 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                 OCR0A = (uint8_t)ocr;
                 TIMSK0 = (1 << OCIE0A) | (1 << OCIE0B);
             }
+            timer->maxValue = ocr - 1;
             OCR0B = (uint8_t)((uint32_t)ocr * duty / 100);
             TCCR0A = ((out & 0xF) << COM0B0) | ((wgm & 0x3) << WGM00);
             TCCR0B = (0 << FOC0A) | (0 << FOC0B)
@@ -324,10 +330,11 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                 OCR1A = ocr;
                 TIMSK1 = (1 << OCIE1A) | (1 << OCIE1B);
             }
+            timer->maxValue = ocr - 1;
             OCR1B = (uint16_t)((uint32_t)ocr * duty / 100);
             TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
             TCCR1B = (0 << ICNC1) | (0 << ICES1)
-            | (((wgm >> 2) & 0x3) << WGM12);
+                    | (((wgm >> 2) & 0x3) << WGM12);
             TCCR1C = (0 << FOC1A) | (0 << FOC1B);
             timer1 = timer;
             return true;
@@ -357,17 +364,18 @@ bool timer_configPwm(Timer *timer, const TimerIndex index, const uint32_t freq,
                 OCR2A = (uint8_t)ocr;
                 TIMSK2 = (1 << OCIE2A) | (1 << OCIE2B);
             }
+            timer->maxValue = ocr - 1;
             OCR0B = (uint8_t)((uint32_t)ocr * duty / 100);
             TCCR2A = ((out & 0xF) << COM2B0) | ((wgm & 0x3) << WGM20);
             TCCR2B = (0 << FOC2A) | (0 << FOC2B)
-            | (((wgm >> 2) & 0x1) << WGM22);
+                    | (((wgm >> 2) & 0x1) << WGM22);
             timer2 = timer;
             return true;
 #endif
 #endif
         default:
-            (void)wgm;
             (void)ocr;
+            (void)wgm;
             return false;
     }
 }
@@ -383,65 +391,65 @@ void timer_configCounter(Timer *timer, const TimerIndex index,
 #ifdef TCCR0A
 #ifdef TIMER_COUNTER_0
         case TIMER_0:
-        if (0 == top) {
-            TIMSK0 = 0;
-        } else {
-            OCR0A = (uint8_t)top;
-            if (UINT8_MAX == top) {
-                wgm = TIMER1_WGM_NORMAL;
-                TIMSK1 = (1 << TOIE1);
+            if (0 == top) {
+                TIMSK0 = 0;
             } else {
-                wgm = TIMER1_WGM_CTC_OCR;
-                TIMSK1 = (1 << OCIE1A);
+                OCR0A = (uint8_t)top;
+                if (UINT8_MAX == top) {
+                    wgm = TIMER1_WGM_NORMAL;
+                    TIMSK1 = (1 << TOIE1);
+                } else {
+                    wgm = TIMER1_WGM_CTC_OCR;
+                    TIMSK1 = (1 << OCIE1A);
+                }
             }
-        }
-        TCCR0A = ((out & 0xF) << COM0B0) | ((wgm & 0x3) << WGM00);
-        TCCR0B = (0 << FOC0A) | (0 << FOC0B) | (0 << WGM02);
-        timer0 = timer;
-        break;
+            TCCR0A = ((out & 0xF) << COM0B0) | ((wgm & 0x3) << WGM00);
+            TCCR0B = (0 << FOC0A) | (0 << FOC0B) | (0 << WGM02);
+            timer0 = timer;
+            break;
 #endif
 #endif
 #ifdef TCCR1A
 #ifdef TIMER_COUNTER_1
         case TIMER_1:
-        if (0 == top) {
-            TIMSK1 = 0;
-        } else {
-            OCR1A = (uint16_t)top;
-            if (UINT16_MAX == top) {
-                wgm = TIMER1_WGM_NORMAL;
-                TIMSK1 = (1 << TOIE1);
+            if (0 == top) {
+                TIMSK1 = 0;
             } else {
-                wgm = TIMER1_WGM_CTC_OCR;
-                TIMSK1 = (1 << OCIE1A);
+                OCR1A = (uint16_t)top;
+                if (UINT16_MAX == top) {
+                    wgm = TIMER1_WGM_NORMAL;
+                    TIMSK1 = (1 << TOIE1);
+                } else {
+                    wgm = TIMER1_WGM_CTC_OCR;
+                    TIMSK1 = (1 << OCIE1A);
+                }
             }
-        }
-        TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
-        TCCR1B = (0 << ICNC1) | (0 << ICES1) | (0 << WGM12);
-        TCCR1C = (0 << FOC1A) | (0 << FOC1B);
-        timer1 = timer;
-        break;
+            TCCR1A = ((out & 0xF) << COM1B0) | ((wgm & 0x3) << WGM10);
+            TCCR1B = (0 << ICNC1) | (0 << ICES1) | (0 << WGM12);
+            TCCR1C = (0 << FOC1A) | (0 << FOC1B);
+            timer1 = timer;
+            break;
 #endif
 #endif
 #ifdef TCCR2A
 #ifdef TIMER_COUNTER_2
         case TIMER_2:
-        if (0 == top) {
-            TIMSK0 = 0;
-        } else {
-            OCR2A = (uint8_t)top;
-            if (UINT8_MAX == top) {
-                wgm = TIMER1_WGM_NORMAL;
-                TIMSK2 = (1 << TOIE2);
+            if (0 == top) {
+                TIMSK0 = 0;
             } else {
-                wgm = TIMER1_WGM_CTC_OCR;
-                TIMSK2 = (1 << OCIE2A);
+                OCR2A = (uint8_t)top;
+                if (UINT8_MAX == top) {
+                    wgm = TIMER1_WGM_NORMAL;
+                    TIMSK2 = (1 << TOIE2);
+                } else {
+                    wgm = TIMER1_WGM_CTC_OCR;
+                    TIMSK2 = (1 << OCIE2A);
+                }
             }
-        }
-        TCCR2A = ((out & 0xF) << COM2B0) | ((wgm & 0x3) << WGM20);
-        TCCR2B = (0 << FOC2A) | (0 << FOC2B) | (0 << WGM22);
-        timer2 = timer;
-        break;
+            TCCR2A = ((out & 0xF) << COM2B0) | ((wgm & 0x3) << WGM20);
+            TCCR2B = (0 << FOC2A) | (0 << FOC2B) | (0 << WGM22);
+            timer2 = timer;
+            break;
 #endif
 #endif
         default:
@@ -528,28 +536,34 @@ void timer_stop(Timer *timer) {
 }
 
 void timer_setPwmDuty(Timer *timer, uint8_t duty) {
-    uint16_t ocr;
+    uint32_t ocr;
+    uint8_t wgm;
 
     switch (timer->index) {
+#ifdef TIMER_PWM_0
 #ifdef TCCR0A
         case TIMER_0:
-            ocr = OCR0A;
-            OCR0B = (uint8_t)(ocr * duty / 100);
+            OCR0B = (uint8_t)(((uint32_t)timer->maxValue + 1) * duty / 100);
             break;
 #endif
+#endif
 #ifdef TCCR1A
+#ifdef TIMER_PWM_1
         case TIMER_1:
-            ocr = OCR1A;
-            OCR1B = ocr * duty / 100;
+            OCR1B = (uint16_t)(((uint32_t)timer->maxValue + 1) * duty / 100);
             break;
 #endif
-#ifdef TCCR1A
+#endif
+#ifdef TCCR2A
+#ifdef TIMER_PWM_2
         case TIMER_2:
-            ocr = OCR2A;
-            OCR2B = (uint8_t)(ocr * duty / 100);
+            OCR2B = (uint8_t)(((uint32_t)timer->maxValue + 1) * duty / 100);
             break;
+#endif
 #endif
         default:
+            (void)ocr;
+            (void)wgm;
             return;
     }
 }
@@ -571,5 +585,4 @@ uint16_t timer_get(Timer *timer) {
         default:
             return UINT16_MAX;
     }
-    return UINT16_MAX;
 }

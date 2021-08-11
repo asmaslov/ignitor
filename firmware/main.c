@@ -3,7 +3,7 @@
 #ifdef REMOTE
 #include "remote.h"
 #endif
-#include "meter.h"
+#include <cdi.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stddef.h>
@@ -11,27 +11,6 @@
 #include <stdbool.h>
 
 static Timer timer2;
-
-static void sparks_init(void) {
-    DDRC |= (1 << DDC2) | (1 << DDC3);
-    PORTC |= (1 << PC2) | (1 << PC3);
-}
-
-static void sparks_ignite(MeterSpark spark, bool on) {
-    if (METER_SPARK_FRONT == spark) {
-        if (on) {
-            PORTC |= (1 << PC2);
-        } else {
-            PORTC &= ~(1 << PC2);
-        }
-    } else if (METER_SPARK_BACK == spark) {
-        if (on) {
-            PORTC |= (1 << PC3);
-        } else {
-            PORTC &= ~(1 << PC3);
-        }
-    }
-}
 
 static void watchdog_init(void)
 {
@@ -47,8 +26,7 @@ int main(void)
     remote_init();
 #endif
     watchdog_init();
-    sparks_init();
-    meter_init(sparks_ignite);
+    cdi_init();
     while (true) {
 #ifdef REMOTE
         remote_work();

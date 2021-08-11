@@ -48,6 +48,7 @@ typedef struct {
     TimerHandler handler;
     TimerResultHandler resultHandler;
     uint8_t clockSelect;
+    uint16_t maxValue;
 } Timer;
 
 bool timer_configSimple(Timer *timer, const TimerIndex index,

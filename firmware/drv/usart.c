@@ -2,7 +2,6 @@
 #include "config.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/atomic.h>
 #include <stddef.h>
 #include <limits.h>
 
@@ -68,9 +67,7 @@ ISR(USART0_RX_vect) {
             if (USART_BUFFER_SIZE == usart0->rxBufferIndexWrite) {
                 usart0->rxBufferIndexWrite = 0;
             }
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                usart0->rxBufferCount++;
-            }
+            usart0->rxBufferCount++;
         }
     } else {
         (void)UDR0;
@@ -89,9 +86,7 @@ ISR(USART0_TX_vect) {
             if (USART_BUFFER_SIZE == usart0->txBufferIndexRead) {
                 usart0->txBufferIndexRead = 0;
             }
-            ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-                usart0->txBufferCount--;
-            }
+            usart0->txBufferCount--;
         }
     }
 }
@@ -178,9 +173,7 @@ void usart_putchar(Usart *usart, const uint8_t data) {
         if (USART_BUFFER_SIZE == usart->txBufferIndexWrite) {
             usart->txBufferIndexWrite = 0;
         }
-        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-            usart->txBufferCount++;
-        }
+        usart->txBufferCount++;
     }
     else {
         *usart->regData = data;
@@ -199,9 +192,7 @@ const uint8_t usart_getchar(Usart *usart) {
     if (USART_BUFFER_SIZE == usart->rxBufferIndexRead) {
         usart->rxBufferIndexRead = 0;
     }
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-        usart->rxBufferCount--;
-    }
+    usart->rxBufferCount--;
     return data;
 }
 

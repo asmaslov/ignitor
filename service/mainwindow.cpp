@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "ui_ignitor.h"
 #include "remote.h"
-#include "meter.h"
+#include "cdi.h"
 #include <QAction>
 #include <QCloseEvent>
 #include <QSerialPortInfo>
@@ -16,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
   , signalMapperGenerator(new QSignalMapper(this))
   , signalMapperValue(new QSignalMapper(this))
   , serial(new QSerialPort)
-  , cmd(REMOTE_PACKET_CMD_GET_RECORD)
+  , cmd(REMOTE_PACKET_CMD_GET_SHIFT)
   , recordIdx(0)
   , ltr35(new Ltr35)
 {
@@ -90,13 +90,17 @@ MainWindow::MainWindow(QWidget *parent)
         LTR_Close(&ltrServer);
     }
 
-    ui->spinBoxSpeedSet->setMaximum(METER_RPM_MAX);
-    ui->spinBoxSpeedSet->setSingleStep(METER_RPM_STEP);
+    ui->spinBoxSpeedSet->setMaximum(CDI_RPM_MAX);
+    ui->spinBoxSpeedSet->setSingleStep(CDI_RPM_STEP);
+    ui->spinBoxShiftSet->setMinimum(CDI_TIMING_UNDER_LOW);
+    ui->spinBoxShiftSet->setMaximum(CDI_VALUE_MAX);
 
-    for (int i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
+    for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
         timingsUi.append(createTimingUi(ui->gridLayoutTimings, QString("%1").arg(i + 1), i + 1));
     }
     lockTimings(true);
+    lockShift(true);
+    connect(ui->spinBoxShiftSet, SIGNAL(valueChanged(int)), this, SLOT(calcAllValues()));
     connect(signalMapperValue, SIGNAL(mapped(int)), this, SLOT(calcValue(int)));
     adjustSize();
 
@@ -144,22 +148,16 @@ MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString nam
     layout->addWidget(uiTimings.index, row, column++);
 
     uiTimings.rpm = new QSpinBox();
-    uiTimings.rpm->setMaximum(METER_RPM_MAX);
-    uiTimings.rpm->setSingleStep(METER_RPM_STEP);
+    uiTimings.rpm->setMaximum(CDI_RPM_MAX);
+    uiTimings.rpm->setSingleStep(CDI_RPM_STEP);
     layout->addWidget(uiTimings.rpm, row, column++);
 
     uiTimings.timing = new QSpinBox();
-    //uiTimings.timing->setMinimum(METER_TIMING_UNDER_LOW);
-    //uiTimings.timing->setMaximum(METER_TIMING_OVER_HIGH);
+    uiTimings.timing->setMinimum(CDI_TIMING_UNDER_LOW);
+    uiTimings.timing->setMaximum(CDI_TIMING_OVER_HIGH);
     connect(uiTimings.timing, SIGNAL(valueChanged(int)), signalMapperValue, SLOT(map()));
     signalMapperValue->setMapping(uiTimings.timing, row);
     layout->addWidget(uiTimings.timing, row, column++);
-
-    uiTimings.shift = new QSpinBox();
-    uiTimings.shift->setMaximum(UINT8_MAX);
-    connect(uiTimings.shift, SIGNAL(valueChanged(int)), signalMapperValue, SLOT(map()));
-    signalMapperValue->setMapping(uiTimings.shift, row);
-    layout->addWidget(uiTimings.shift, row, column++);
 
     uiTimings.value = new QLineEdit();
     uiTimings.value->setReadOnly(true);
@@ -168,12 +166,16 @@ MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString nam
     return uiTimings;
 }
 
+void MainWindow::lockShift(bool lock) {
+    ui->spinBoxShiftSet->setEnabled(!lock);
+    ui->pushButtonShiftSet->setEnabled(!lock);
+}
+
 void MainWindow::lockTimings(bool lock) {
-    for (int i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
+    for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
         timingsUi[i].index->setEnabled(!lock);
         timingsUi[i].rpm->setEnabled(!lock);
         timingsUi[i].timing->setEnabled(!lock);
-        timingsUi[i].shift->setEnabled(!lock);
         timingsUi[i].value->setEnabled(!lock);
     }
     ui->pushButtonUpdate->setEnabled(!lock);
@@ -190,7 +192,7 @@ void MainWindow::setPort(const QString &portname) {
     semaphoreTransmitComplete.release();
     mutexRequest.lock();
     recordIdx = 0;
-    cmd = REMOTE_PACKET_CMD_GET_RECORD;
+    cmd = REMOTE_PACKET_CMD_GET_SHIFT;
     mutexRequest.unlock();
     serial.setPortName(portname);
     if (serial.open(QIODevice::ReadWrite)) {
@@ -225,8 +227,18 @@ void MainWindow::setGenerator(const QString &generator) {
 
 void MainWindow::calcValue(int row) {
     int timing = timingsUi[row - 1].timing->value();
-    int shift = timingsUi[row - 1].shift->value();
-    timingsUi[row - 1].value->setText(QString("%1").arg(shift - timing));
+    int shift = ui->spinBoxShiftSet->value();
+    if ((shift - timing >= 0) && (shift - timing <= CDI_VALUE_MAX)) {
+        timingsUi[row - 1].value->setText(QString("%1").arg(shift - timing));
+    } else {
+        timingsUi[row - 1].value->setText(QString(""));
+    }
+}
+
+void MainWindow::calcAllValues() {
+    for (int i = 1 ; i <= CDI_TIMING_RECORD_SLOTS; i++) {
+        calcValue(i);
+    }
 }
 
 void MainWindow::portRead() {
@@ -251,33 +263,39 @@ void MainWindow::portRead() {
                     } else if (REMOTE_PACKET_CMD_GET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
                         uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
                         uint16_t rpm = qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_2]);
-                        uint8_t value = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_1]);
+                        uint8_t timing = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_1]);
                         timingsUi[idx].rpm->setValue(rpm);
-                        timingsUi[idx].value->setText(QString("%1").arg(value));
+                        timingsUi[idx].timing->setValue(timing);
+                        timingsUi[idx].value->setText(QString("%1").arg(ui->spinBoxShiftSet->value() - timing));
                         mutexRequest.lock();
                         recordIdx++;
-                        if (METER_TIMING_RECORD_TOTAL_SLOTS == recordIdx) {
-                            recordIdx = 0;
-                            cmd = REMOTE_PACKET_CMD_GET_RPM;
+                        if (CDI_TIMING_RECORD_SLOTS == recordIdx) {
                             ui->statusbar->showMessage("Timings updated");
                             lockTimings(false);
+                            recordIdx = 0;
+                            cmd = REMOTE_PACKET_CMD_GET_RPM;
                         }
+                        mutexRequest.unlock();
+                    } else if (REMOTE_PACKET_CMD_GET_SHIFT == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        uint8_t shift = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
+                        ui->spinBoxShiftSet->setValue(shift);
+                        lockShift(false);
+                        mutexRequest.lock();
+                        recordIdx = 0;
+                        cmd = REMOTE_PACKET_CMD_GET_RECORD;
                         mutexRequest.unlock();
                     } else if (REMOTE_PACKET_CMD_SET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
                         uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
                         mutexRequest.lock();
                         recordIdx = idx + 1;
-                        if (METER_TIMING_RECORD_TOTAL_SLOTS == recordIdx) {
+                        if (CDI_TIMING_RECORD_SLOTS == recordIdx) {
                             recordIdx = 0;
-                            cmd = REMOTE_PACKET_CMD_APPLY_RECS;
-                            ui->statusbar->showMessage("Applying timings");
+                            cmd = REMOTE_PACKET_CMD_GET_RECORD;
+                            ui->statusbar->showMessage("Verifying timings");
                         }
                         mutexRequest.unlock();
-                    } else if (REMOTE_PACKET_CMD_APPLY_RECS == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                        mutexRequest.lock();
+                    } else if (REMOTE_PACKET_CMD_SET_SHIFT == data[REMOTE_REPLY_PACKET_PART_CMD]) {
                         cmd = REMOTE_PACKET_CMD_GET_RECORD;
-                        ui->statusbar->showMessage("Verifying timings");
-                        mutexRequest.unlock();
                     } else {
                         ui->statusbar->showMessage("Unknown");
                     }
@@ -306,6 +324,8 @@ void MainWindow::portSend() {
             packet[REMOTE_REPLY_PACKET_PART_VALUE_0] = recordIdx;
             packet[REMOTE_REPLY_PACKET_PART_VALUE_1] = timingsUi[recordIdx].value->text().toInt();
             qToLittleEndian(timingsUi[recordIdx].rpm->value(), &packet[REMOTE_REPLY_PACKET_PART_VALUE_2]);
+        } else if (REMOTE_PACKET_CMD_SET_SHIFT == cmd) {
+            packet[REMOTE_REPLY_PACKET_PART_VALUE_0] = ui->spinBoxShiftSet->value();
         }
         mutexRequest.unlock();
         uint8_t crc = 0;
@@ -323,10 +343,19 @@ void MainWindow::portReplyTimeout() {
     semaphoreTransmitComplete.release();
 }
 
+void MainWindow::on_pushButtonShiftSet_released()
+{
+    mutexRequest.lock();
+    recordIdx = 0;
+    cmd = REMOTE_PACKET_CMD_SET_SHIFT;
+    mutexRequest.unlock();
+    ui->statusbar->showMessage("Writing new timings");
+}
+
 void MainWindow::on_pushButtonUpdate_released() {
     bool allOk = true;
 
-    for (int i = 0; i < METER_TIMING_RECORD_TOTAL_SLOTS; i++) {
+    for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
         bool ok;
         timingsUi[i].value->text().toInt(&ok);
         allOk &= ok;
@@ -364,4 +393,10 @@ void MainWindow::on_pushButtonStop_released() {
             QMetaObject::invokeMethod(ltr35.data(), "stop", Qt::QueuedConnection);
         }
     }
+}
+
+void MainWindow::on_checkBoxShiftAutoset_toggled(bool checked)
+{
+    ui->pushButtonShiftSet->setEnabled(!checked);
+    //TODO: Enable auto shift set by timer
 }

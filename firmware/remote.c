@@ -1,7 +1,7 @@
 #include "remote.h"
 #include "usart.h"
-#include "meter.h"
 #include <avr/io.h>
+#include <cdi.h>
 #include <util/crc16.h>
 
 /****************************************************************************
@@ -10,7 +10,7 @@
 
 static uint8_t receivedPartIndex;
 static RemoteControlPacket controlPacket;
-static MeterTimingRecord *record;
+static CdiTimingRecord *record;
 static RemoteReplyPacket replyPacket;
 static Usart usart0;
 
@@ -33,30 +33,37 @@ static void proceed(void) {
         replyPacket.cmd = controlPacket.cmd;
         switch (controlPacket.cmd) {
             case REMOTE_PACKET_CMD_GET_RPM:
-                replyPacket.value16_0 = meter_getRpm();
+                replyPacket.value16_0 = cdi_getRpm();
                 break;
             case REMOTE_PACKET_CMD_GET_RECORD:
-                if (controlPacket.value8_0 < METER_TIMING_RECORD_TOTAL_SLOTS) {
+                if (controlPacket.value8_0 < CDI_TIMING_RECORD_SLOTS) {
                     replyPacket.value8_0 = controlPacket.value8_0;
                     record = getTimingRecord(controlPacket.value8_0);
                     replyPacket.value16_1 = record->rpm;
-                    replyPacket.value8_1 = record->value;
+                    replyPacket.value8_1 = record->timing;
                 } else {
                     return;
                 }
                 break;
+            case REMOTE_PACKET_CMD_GET_SHIFT:
+                replyPacket.value8_0 = cdi_getShift();
+                break;
             case REMOTE_PACKET_CMD_SET_RECORD:
-                if (controlPacket.value8_0 < METER_TIMING_RECORD_TOTAL_SLOTS) {
+                if (controlPacket.value8_0 < CDI_TIMING_RECORD_SLOTS) {
                     replyPacket.value8_0 = controlPacket.value8_0;
-                    meter_setTimingRecord(controlPacket.value8_0, controlPacket.value16_1, controlPacket.value8_1);
+                    cdi_setTimingRecord(controlPacket.value8_0, controlPacket.value16_1, controlPacket.value8_1);
                     replyPacket.value16_1 = controlPacket.value16_1;
                     replyPacket.value8_1 = controlPacket.value8_1;
                 } else {
                     return;
                 }
                 break;
-            case REMOTE_PACKET_CMD_APPLY_RECS:
-                meter_applyTimings();
+            case REMOTE_PACKET_CMD_SET_SHIFT:
+                if (controlPacket.value8_0 < CDI_VALUE_MAX) {
+                    cdi_setShift(controlPacket.value8_0);
+                } else {
+                    return;
+                }
                 break;
             default:
                 return;

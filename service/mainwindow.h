@@ -33,32 +33,35 @@ private:
         QLabel *index;
         QSpinBox *rpm;
         QSpinBox *timing;
-        QSpinBox *shift;
         QLineEdit *value;
     };
 
     static constexpr int rotorSignalChannel = 0;
-    static constexpr double rotorSignalAmplitude = 1.0;
+    static constexpr double rotorSignalAmplitude = 2.0;
 
-    static constexpr int timerPortSendPeriodMs = 100;
-    static constexpr int timerPortAutoReadPeriodMs = 20;
+    static constexpr int timerPortSendPeriodMs = 50;
+    static constexpr int timerPortAutoReadPeriodMs = 10;
     static constexpr int timerPortReplyTimeoutMs = 500;
 
 private:
     void closeEvent(QCloseEvent* e);
     TimingUi createTimingUi(QGridLayout *layout, QString name, int row);
+    void lockShift(bool lock);
     void lockTimings(bool lock);
 
 private slots:
     void setPort(const QString &portname);
     void setGenerator(const QString &generator);
     void calcValue(int row);
+    void calcAllValues();
     void portRead();
     void portSend();
     void portReplyTimeout();
+    void on_pushButtonShiftSet_released();
     void on_pushButtonUpdate_released();
     void on_pushButtonGenerate_released();
     void on_pushButtonStop_released();
+    void on_checkBoxShiftAutoset_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;

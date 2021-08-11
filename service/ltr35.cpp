@@ -1,7 +1,6 @@
 #include "ltr35.h"
 #include <cmath>
 #include <algorithm>
-
 #include <QThread>
 
 using namespace std;
@@ -266,11 +265,11 @@ bool Ltr35::generateSamples(bool cycle) {
                 }
                 break;
             case SIGNAL_SHAPE_ROTOR:
-                //TODO: Make rotor signal
                 QVector<double> coil;
                 coil.resize((int)round(samplesPerPeriodCount[i] / 40));
                 for (int n = 0; n < coil.size(); n++) {
-                    coil[n] = n * n * sigs[i].amplitude / (double)(coil.size() * coil.size());
+
+                    coil[n] = sigs[i].amplitude * pow(M_E, -8.0 * M_PI * pow(((double)n / (double)coil.size()) - 0.5, 2));
                 }
                 for (int k = 0; k < samplesPerChannelTotal; k += (int)round(samplesPerPeriodCount[i])) {
                     int roundSamples = (int)round(samplesPerPeriodCount[i]);
