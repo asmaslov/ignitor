@@ -1,14 +1,13 @@
-#include "config.h"
 #include "timer.h"
-#ifdef REMOTE
+#include "cdi.h"
 #include "remote.h"
-#endif
-#include <cdi.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#define WD_RESET_FREQ_HZ  126
 
 static Timer timer2;
 
@@ -22,15 +21,11 @@ static void watchdog_init(void)
 int main(void)
 {
     sei();
-#ifdef REMOTE
-    remote_init();
-#endif
     watchdog_init();
     cdi_init();
+    remote_init();
     while (true) {
-#ifdef REMOTE
         remote_work();
-#endif
     }
     return 0;
 }

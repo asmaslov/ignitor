@@ -17,7 +17,7 @@ CC = avr-gcc
 OBJCOPY = avr-objcopy
 SIZE = avr-size
 
-DEFINES = -DF_CPU=${F_CPU} -DREMOTE=
+DEFINES = -DF_CPU=${F_CPU} -DTIMER_SIMPLE_0= -DTIMER_SIMPLE_2= -DTIMER_METER_1=
 OPTIONS = -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -funsigned-char -funsigned-bitfields
 CFLAGS = -mmcu=${MCU} ${DEFINES} ${INCS_DIRS} -std=gnu99 -Wall -g2 -gstabs -Os ${OPTIONS}
 LDFLAGS = -Wl,--gc-sections -Wl,-Map,${BUILD_DIR}/${PRJ}.map

@@ -75,11 +75,12 @@ typedef union {
 } RemoteReplyPacket;
 
 #define REMOTE_PACKET_CMD_UNDEFINED   0x00
-#define REMOTE_PACKET_CMD_GET_RPM     0x01
+#define REMOTE_PACKET_CMD_GET_RPS     0x01
 #define REMOTE_PACKET_CMD_GET_RECORD  0x21
 #define REMOTE_PACKET_CMD_GET_SHIFT   0x22
 #define REMOTE_PACKET_CMD_SET_RECORD  0xA1
 #define REMOTE_PACKET_CMD_SET_SHIFT   0xA2
+#define REMOTE_PACKET_CMD_SAVE_MEM    0xAF
 
 void remote_init(void);
 void remote_work(void);

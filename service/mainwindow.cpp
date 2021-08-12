@@ -6,14 +6,18 @@
 #include <QCloseEvent>
 #include <QSerialPortInfo>
 #include <QtEndian>
+#include <QMessageBox>
+#include <QFileDialog>
 
 #include <QDebug>
+
+constexpr char MainWindow::timingsFileExtension[];
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
   , ui(new Ui::MainWindow)
   , signalMapperPort(new QSignalMapper(this))
-  , signalMapperGenerator(new QSignalMapper(this))
+  , signalMapperGeneratorLtr35(new QSignalMapper(this))
   , signalMapperValue(new QSignalMapper(this))
   , serial(new QSerialPort)
   , cmd(REMOTE_PACKET_CMD_GET_SHIFT)
@@ -44,7 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui->menuPort->addAction(node);
     }
 
-    connect(signalMapperGenerator, SIGNAL(mapped(const QString &)), this, SLOT(setGenerator(const QString &)));
+    connect(signalMapperGeneratorLtr35, SIGNAL(mapped(const QString &)), this, SLOT(setGeneratorLtr35(const QString &)));
     memset(csn, 0, sizeof(BYTE) * LTR_CRATES_MAX * LTR_CRATE_SERIAL_SIZE);
     if (LTR_IsOpened(&ltrServer) != LTR_OK) {
         LTR_OpenSvcControl(&ltrServer, LTRD_ADDR_DEFAULT, LTRD_PORT_DEFAULT);
@@ -76,8 +80,8 @@ MainWindow::MainWindow(QWidget *parent)
                                     QAction *node = new QAction(nodeName, ui->menuPort);
                                     node->setCheckable(true);
                                     groupGenerator->addAction(node);
-                                    signalMapperGenerator->setMapping(node, nodeName);
-                                    connect(node, SIGNAL(triggered()), signalMapperGenerator, SLOT(map()));
+                                    signalMapperGeneratorLtr35->setMapping(node, nodeName);
+                                    connect(node, SIGNAL(triggered()), signalMapperGeneratorLtr35, SLOT(map()));
                                     ui->menuGenerator->addAction(node);
                                 }
                             }
@@ -90,6 +94,7 @@ MainWindow::MainWindow(QWidget *parent)
         LTR_Close(&ltrServer);
     }
 
+    ui->spinBoxSpeedSet->setMinimum(CDI_RPM_MIN);
     ui->spinBoxSpeedSet->setMaximum(CDI_RPM_MAX);
     ui->spinBoxSpeedSet->setSingleStep(CDI_RPM_STEP);
     ui->spinBoxShiftSet->setMinimum(CDI_TIMING_UNDER_LOW);
@@ -99,7 +104,6 @@ MainWindow::MainWindow(QWidget *parent)
         timingsUi.append(createTimingUi(ui->gridLayoutTimings, QString("%1").arg(i + 1), i + 1));
     }
     lockTimings(true);
-    lockShift(true);
     connect(ui->spinBoxShiftSet, SIGNAL(valueChanged(int)), this, SLOT(calcAllValues()));
     connect(signalMapperValue, SIGNAL(mapped(int)), this, SLOT(calcValue(int)));
     adjustSize();
@@ -113,7 +117,7 @@ MainWindow::~MainWindow() {
     delete ui;
     delete groupGenerator;
     delete groupPort;
-    delete signalMapperGenerator;
+    delete signalMapperGeneratorLtr35;
     delete signalMapperPort;
 }
 
@@ -148,6 +152,7 @@ MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString nam
     layout->addWidget(uiTimings.index, row, column++);
 
     uiTimings.rpm = new QSpinBox();
+    uiTimings.rpm->setMinimum(CDI_RPM_MIN);
     uiTimings.rpm->setMaximum(CDI_RPM_MAX);
     uiTimings.rpm->setSingleStep(CDI_RPM_STEP);
     layout->addWidget(uiTimings.rpm, row, column++);
@@ -167,18 +172,79 @@ MainWindow::TimingUi MainWindow::createTimingUi(QGridLayout *layout, QString nam
 }
 
 void MainWindow::lockShift(bool lock) {
-    ui->spinBoxShiftSet->setEnabled(!lock);
     ui->pushButtonShiftSet->setEnabled(!lock);
+    ui->checkBoxShiftAutoset->setEnabled(!lock);
 }
 
 void MainWindow::lockTimings(bool lock) {
-    for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
-        timingsUi[i].index->setEnabled(!lock);
-        timingsUi[i].rpm->setEnabled(!lock);
-        timingsUi[i].timing->setEnabled(!lock);
-        timingsUi[i].value->setEnabled(!lock);
-    }
     ui->pushButtonUpdate->setEnabled(!lock);
+    ui->actionWriteMemory->setEnabled(!lock);
+}
+
+bool MainWindow::loadTimingsFile(QString fileName) {
+    QFile file(fileName);
+    bool result = false;
+    if (file.open(QIODevice::ReadOnly)) {
+        QByteArray byteArray = file.readAll();
+        result = !byteArray.isEmpty();
+        QDataStream stream(byteArray);
+        stream.setVersion(QDataStream::Qt_5_6);
+        int shift;
+        TimingRecord timings[CDI_TIMING_RECORD_SLOTS];
+        stream >> shift
+               >> timings[0].rpm >> timings[0].timing
+               >> timings[1].rpm >> timings[1].timing
+               >> timings[2].rpm >> timings[2].timing
+               >> timings[3].rpm >> timings[3].timing
+               >> timings[4].rpm >> timings[4].timing
+               >> timings[5].rpm >> timings[5].timing
+               >> timings[6].rpm >> timings[6].timing
+               >> timings[7].rpm >> timings[7].timing
+               >> timings[8].rpm >> timings[8].timing
+               >> timings[9].rpm >> timings[9].timing
+               >> timings[10].rpm >> timings[10].timing;
+        ui->spinBoxShiftSet->setValue(shift);
+        for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
+            timingsUi[i].rpm->setValue(timings[i].rpm);
+            timingsUi[i].timing->setValue(timings[i].timing);
+        }
+    } else {
+        QMessageBox::critical(this, tr("Error opening file"), tr("Unable to open file"));
+    }
+    return result;
+}
+
+bool MainWindow::saveTimingsFile(QString fileName) {
+    QFile file(fileName);
+    bool result = false;
+    if (file.open(QIODevice::WriteOnly)) {
+        QByteArray byteArray;
+        QDataStream stream(&byteArray, QIODevice::WriteOnly);
+        stream.setVersion(QDataStream::Qt_5_6);
+        int shift = ui->spinBoxShiftSet->value();
+        TimingRecord timings[CDI_TIMING_RECORD_SLOTS];
+        for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
+            timings[i].rpm = timingsUi[i].rpm->value();
+            timings[i].timing = timingsUi[i].timing->value();
+        }
+        stream << shift
+               << timings[0].rpm << timings[0].timing
+               << timings[1].rpm << timings[1].timing
+               << timings[2].rpm << timings[2].timing
+               << timings[3].rpm << timings[3].timing
+               << timings[4].rpm << timings[4].timing
+               << timings[5].rpm << timings[5].timing
+               << timings[6].rpm << timings[6].timing
+               << timings[7].rpm << timings[7].timing
+               << timings[8].rpm << timings[8].timing
+               << timings[9].rpm << timings[9].timing
+               << timings[10].rpm << timings[10].timing;
+        result = file.write(byteArray);
+        file.close();
+    } else {
+        QMessageBox::critical(this, tr("Error opening file"), tr("Unable to open file"));
+    }
+    return result;
 }
 
 void MainWindow::setPort(const QString &portname) {
@@ -209,7 +275,7 @@ void MainWindow::setPort(const QString &portname) {
     }
 }
 
-void MainWindow::setGenerator(const QString &generator) {
+void MainWindow::setGeneratorLtr35(const QString &generator) {
     if (ltr35->isReady()) {
         if (ltr35->isBusy()) {
             QMetaObject::invokeMethod(ltr35.data(), "stop", Qt::QueuedConnection);
@@ -255,25 +321,29 @@ void MainWindow::portRead() {
                     crc += data[i];
                 }
                 if (crc == data[REMOTE_REPLY_PACKET_PART_CRC]) {
-                    if (REMOTE_PACKET_CMD_GET_RPM == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                        QString rpm = QString("%1").arg(qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]));
+                    if (REMOTE_PACKET_CMD_GET_RPS == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        uint8_t rps = qFromLittleEndian<quint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
+                        QString rpm = QString("%1").arg(rps * 60);
                         if (ui->lineEditSpeedReal->text() != rpm) {
                             ui->lineEditSpeedReal->setText(rpm);
                         }
                     } else if (REMOTE_PACKET_CMD_GET_RECORD == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                        uint8_t idx = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
-                        uint16_t rpm = qFromLittleEndian<qint16>(&data[REMOTE_REPLY_PACKET_PART_VALUE_2]);
-                        uint8_t timing = qFromLittleEndian<qint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_1]);
-                        timingsUi[idx].rpm->setValue(rpm);
+                        uint8_t idx = qFromLittleEndian<quint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_0]);
+                        uint8_t rps = qFromLittleEndian<quint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_1]);
+                        uint8_t timing = qFromLittleEndian<quint8>(&data[REMOTE_REPLY_PACKET_PART_VALUE_2]);
+                        timingsUi[idx].rpm->setValue(rps * 60);
                         timingsUi[idx].timing->setValue(timing);
                         timingsUi[idx].value->setText(QString("%1").arg(ui->spinBoxShiftSet->value() - timing));
                         mutexRequest.lock();
                         recordIdx++;
                         if (CDI_TIMING_RECORD_SLOTS == recordIdx) {
-                            ui->statusbar->showMessage("Timings updated");
+                            ui->statusbar->showMessage("Timings loaded");
                             lockTimings(false);
-                            recordIdx = 0;
-                            cmd = REMOTE_PACKET_CMD_GET_RPM;
+                            if (ui->checkBoxShiftAutoset->isChecked()) {
+                                cmd = REMOTE_PACKET_CMD_SET_SHIFT;
+                            } else {
+                                cmd = REMOTE_PACKET_CMD_GET_RPS;
+                            }
                         }
                         mutexRequest.unlock();
                     } else if (REMOTE_PACKET_CMD_GET_SHIFT == data[REMOTE_REPLY_PACKET_PART_CMD]) {
@@ -289,13 +359,30 @@ void MainWindow::portRead() {
                         mutexRequest.lock();
                         recordIdx = idx + 1;
                         if (CDI_TIMING_RECORD_SLOTS == recordIdx) {
-                            recordIdx = 0;
-                            cmd = REMOTE_PACKET_CMD_GET_RECORD;
-                            ui->statusbar->showMessage("Verifying timings");
+                            ui->statusbar->showMessage("Timings updated");
+                            lockTimings(false);
+                            if (ui->checkBoxShiftAutoset->isChecked()) {
+                                cmd = REMOTE_PACKET_CMD_SET_SHIFT;
+                            } else {
+                                cmd = REMOTE_PACKET_CMD_GET_RPS;
+                            }
                         }
                         mutexRequest.unlock();
                     } else if (REMOTE_PACKET_CMD_SET_SHIFT == data[REMOTE_REPLY_PACKET_PART_CMD]) {
-                        cmd = REMOTE_PACKET_CMD_GET_RECORD;
+                        ui->statusbar->showMessage("Shift updated");
+                        ui->spinBoxShiftSet->setEnabled(true);
+                        if (!ui->checkBoxShiftAutoset->isChecked()) {
+                            mutexRequest.lock();
+                            cmd = REMOTE_PACKET_CMD_GET_RPS;
+                            mutexRequest.unlock();
+                        }
+                    } else if (REMOTE_PACKET_CMD_SAVE_MEM == data[REMOTE_REPLY_PACKET_PART_CMD]) {
+                        ui->statusbar->showMessage("EEPROM data updated");
+                        if (!ui->checkBoxShiftAutoset->isChecked()) {
+                            mutexRequest.lock();
+                            cmd = REMOTE_PACKET_CMD_GET_RPS;
+                            mutexRequest.unlock();
+                        }
                     } else {
                         ui->statusbar->showMessage("Unknown");
                     }
@@ -322,8 +409,8 @@ void MainWindow::portSend() {
             packet[REMOTE_REPLY_PACKET_PART_VALUE_0] = recordIdx;
         } else if (REMOTE_PACKET_CMD_SET_RECORD == cmd) {
             packet[REMOTE_REPLY_PACKET_PART_VALUE_0] = recordIdx;
-            packet[REMOTE_REPLY_PACKET_PART_VALUE_1] = timingsUi[recordIdx].value->text().toInt();
-            qToLittleEndian(timingsUi[recordIdx].rpm->value(), &packet[REMOTE_REPLY_PACKET_PART_VALUE_2]);
+            packet[REMOTE_REPLY_PACKET_PART_VALUE_1] = timingsUi[recordIdx].rpm->value() / 60;
+            packet[REMOTE_REPLY_PACKET_PART_VALUE_2] = timingsUi[recordIdx].timing->value();
         } else if (REMOTE_PACKET_CMD_SET_SHIFT == cmd) {
             packet[REMOTE_REPLY_PACKET_PART_VALUE_0] = ui->spinBoxShiftSet->value();
         }
@@ -345,11 +432,11 @@ void MainWindow::portReplyTimeout() {
 
 void MainWindow::on_pushButtonShiftSet_released()
 {
+    ui->spinBoxShiftSet->setEnabled(false);
     mutexRequest.lock();
-    recordIdx = 0;
     cmd = REMOTE_PACKET_CMD_SET_SHIFT;
     mutexRequest.unlock();
-    ui->statusbar->showMessage("Writing new timings");
+    ui->statusbar->showMessage("Writing new shift");
 }
 
 void MainWindow::on_pushButtonUpdate_released() {
@@ -398,5 +485,89 @@ void MainWindow::on_pushButtonStop_released() {
 void MainWindow::on_checkBoxShiftAutoset_toggled(bool checked)
 {
     ui->pushButtonShiftSet->setEnabled(!checked);
-    //TODO: Enable auto shift set by timer
+    mutexRequest.lock();
+    cmd = REMOTE_PACKET_CMD_SET_SHIFT;
+    mutexRequest.unlock();
+}
+
+void MainWindow::on_actionOpen_triggered()
+{
+    QString openDir = ".";
+    if (!timingsFileName.isEmpty())
+    {
+        openDir = QFileInfo(timingsFileName).absoluteDir().path();
+    }
+    QString fileName = QFileDialog::getOpenFileName(this,
+        tr("Open timings"), openDir, QString("%1 (*.%2)").arg(tr("Timings file")).arg(timingsFileExtension));
+    if (!fileName.isEmpty())
+    {
+        if (loadTimingsFile(fileName))
+        {
+            timingsFileName = fileName;
+            setWindowTitle(QCoreApplication::applicationName() + " - " + timingsFileName);
+        }
+    }
+}
+
+void MainWindow::on_actionSave_triggered()
+{
+    if (QFile::exists(timingsFileName))
+    {
+        saveTimingsFile(timingsFileName);
+    }
+    else
+    {
+        QString fileName = QFileDialog::getSaveFileName(this,
+            tr("Save timings"), ".", QString("%1 (*.%2)").arg(tr("Timings file")).arg(timingsFileExtension));
+        if (!fileName.isEmpty())
+        {
+            if (!fileName.endsWith(QString(".%1").arg(timingsFileExtension)))
+            {
+                fileName.append(QString(".%1").arg(timingsFileExtension));
+            }
+            if (saveTimingsFile(fileName))
+            {
+                timingsFileName = fileName;
+                setWindowTitle(QCoreApplication::applicationName() + " - " + timingsFileName);
+            }
+        }
+    }
+}
+
+void MainWindow::on_actionSaveAs_triggered()
+{
+    QString openDir = ".";
+    if (!timingsFileName.isEmpty())
+    {
+        openDir = QFileInfo(timingsFileName).absoluteDir().path();
+    }
+    QString fileName = QFileDialog::getSaveFileName(this,
+        tr("Save timings"), openDir, QString("%1 (*.%2)").arg(tr("Timings file")).arg(timingsFileExtension));
+    if (!fileName.isEmpty())
+    {
+        if (!fileName.endsWith(QString(".%1").arg(timingsFileExtension)))
+        {
+            fileName.append(QString(".%1").arg(timingsFileExtension));
+        }
+        if (saveTimingsFile(fileName))
+        {
+            timingsFileName = fileName;
+            setWindowTitle(QCoreApplication::applicationName() + " - " + timingsFileName);
+        }
+    }
+}
+
+void MainWindow::on_actionExit_triggered()
+{
+    close();
+}
+
+void MainWindow::on_actionWriteMemory_triggered()
+{
+    if (QMessageBox::Yes == QMessageBox::question(this, tr("Attention"), tr("Write data to EEPROM?"), QMessageBox::Yes | QMessageBox::No)) {
+        mutexRequest.lock();
+        cmd = REMOTE_PACKET_CMD_SAVE_MEM;
+        mutexRequest.unlock();
+        ui->statusbar->showMessage("Writing data to EEPROM");
+    }
 }

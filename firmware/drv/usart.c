@@ -1,5 +1,4 @@
 #include "usart.h"
-#include "config.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stddef.h>

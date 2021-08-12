@@ -1,7 +1,7 @@
 #include "remote.h"
 #include "usart.h"
+#include "cdi.h"
 #include <avr/io.h>
-#include <cdi.h>
 #include <util/crc16.h>
 
 /****************************************************************************
@@ -10,7 +10,6 @@
 
 static uint8_t receivedPartIndex;
 static RemoteControlPacket controlPacket;
-static CdiTimingRecord *record;
 static RemoteReplyPacket replyPacket;
 static Usart usart0;
 
@@ -32,15 +31,15 @@ static void proceed(void) {
     if (crc == controlPacket.crc) {
         replyPacket.cmd = controlPacket.cmd;
         switch (controlPacket.cmd) {
-            case REMOTE_PACKET_CMD_GET_RPM:
-                replyPacket.value16_0 = cdi_getRpm();
+            case REMOTE_PACKET_CMD_GET_RPS:
+                replyPacket.value8_0 = cdi_getRps();
                 break;
             case REMOTE_PACKET_CMD_GET_RECORD:
                 if (controlPacket.value8_0 < CDI_TIMING_RECORD_SLOTS) {
                     replyPacket.value8_0 = controlPacket.value8_0;
-                    record = getTimingRecord(controlPacket.value8_0);
-                    replyPacket.value16_1 = record->rpm;
-                    replyPacket.value8_1 = record->timing;
+                    CdiTimingRecord *record = getTimingRecord(controlPacket.value8_0);
+                    replyPacket.value8_1 = record->rps;
+                    replyPacket.value8_2 = record->timing;
                 } else {
                     return;
                 }
@@ -51,9 +50,9 @@ static void proceed(void) {
             case REMOTE_PACKET_CMD_SET_RECORD:
                 if (controlPacket.value8_0 < CDI_TIMING_RECORD_SLOTS) {
                     replyPacket.value8_0 = controlPacket.value8_0;
-                    cdi_setTimingRecord(controlPacket.value8_0, controlPacket.value16_1, controlPacket.value8_1);
-                    replyPacket.value16_1 = controlPacket.value16_1;
+                    cdi_setTimingRecord(controlPacket.value8_0, controlPacket.value8_1, controlPacket.value8_2);
                     replyPacket.value8_1 = controlPacket.value8_1;
+                    replyPacket.value8_2 = controlPacket.value8_2;
                 } else {
                     return;
                 }
@@ -64,6 +63,9 @@ static void proceed(void) {
                 } else {
                     return;
                 }
+                break;
+            case REMOTE_PACKET_CMD_SAVE_MEM:
+                cdi_saveMem();
                 break;
             default:
                 return;

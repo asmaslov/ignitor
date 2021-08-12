@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define CDI_RPM_STEP    60
-#define CDI_RPM_MIN    180
+#define CDI_RPM_MIN     60
 #define CDI_RPM_LOW   1620
 #define CDI_RPM_INCR   240
 #define CDI_RPM_HIGH  3540
@@ -16,7 +16,8 @@
 #define CDI_TIMING_RECORD_SLOTS  11
 
 #define CDI_TIMING_UNDER_LOW  5
-#define CDI_TIMING_OVER_HIGH  30
+#define CDI_TIMING_INCR       3
+#define CDI_TIMING_OVER_HIGH  32
 
 #define CDI_TICKS  4
 #define CDI_SPARKS  2
@@ -33,16 +34,17 @@ typedef enum CDI_SPARK {
 } CdiSpark;
 
 typedef struct _CdiTimingRecord {
-    uint16_t rpm;
+    uint8_t rps;
     uint8_t timing;
 } CdiTimingRecord;
 
 void cdi_init();
-uint16_t cdi_getRpm(void);
+uint8_t cdi_getRps(void);
 CdiTimingRecord *getTimingRecord(uint8_t slot);
-void cdi_setTimingRecord(uint8_t slot, const uint16_t rpm,
+void cdi_setTimingRecord(uint8_t slot, const uint8_t rps,
                          const uint8_t timing);
 uint8_t cdi_getShift(void);
 void cdi_setShift(uint8_t shift);
+void cdi_saveMem(void);
 
 #endif /* CDI_H_ */

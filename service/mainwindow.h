@@ -36,6 +36,13 @@ private:
         QLineEdit *value;
     };
 
+    struct TimingRecord {
+        int rpm;
+        int timing;
+    };
+
+    static constexpr char timingsFileExtension[] = "tim";
+
     static constexpr int rotorSignalChannel = 0;
     static constexpr double rotorSignalAmplitude = 2.0;
 
@@ -48,10 +55,12 @@ private:
     TimingUi createTimingUi(QGridLayout *layout, QString name, int row);
     void lockShift(bool lock);
     void lockTimings(bool lock);
+    bool loadTimingsFile(QString fileName);
+    bool saveTimingsFile(QString fileName);
 
 private slots:
     void setPort(const QString &portname);
-    void setGenerator(const QString &generator);
+    void setGeneratorLtr35(const QString &generator);
     void calcValue(int row);
     void calcAllValues();
     void portRead();
@@ -62,11 +71,16 @@ private slots:
     void on_pushButtonGenerate_released();
     void on_pushButtonStop_released();
     void on_checkBoxShiftAutoset_toggled(bool checked);
+    void on_actionOpen_triggered();
+    void on_actionSave_triggered();
+    void on_actionSaveAs_triggered();
+    void on_actionWriteMemory_triggered();
+    void on_actionExit_triggered();
 
 private:
     Ui::MainWindow *ui;
     QSignalMapper *signalMapperPort;
-    QSignalMapper *signalMapperGenerator;
+    QSignalMapper *signalMapperGeneratorLtr35;
     QSignalMapper *signalMapperValue;
     QActionGroup *groupPort;
     QList<TimingUi> timingsUi;
@@ -81,6 +95,7 @@ private:
     QActionGroup *groupGenerator;
     TLTR ltrServer;
     QThread threadLtr35;
+    QString timingsFileName;
     QScopedPointer<Ltr35> ltr35;
 
 };
