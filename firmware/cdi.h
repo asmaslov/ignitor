@@ -19,6 +19,8 @@
 #define CDI_TIMING_INCR       3
 #define CDI_TIMING_OVER_HIGH  32
 
+#define CDI_SHIFT_DEFAULT  80
+
 #define CDI_TICKS  4
 #define CDI_SPARKS  2
 #define CDI_DELAY_FREQUENCY_HZ  (F_CPU / 256)

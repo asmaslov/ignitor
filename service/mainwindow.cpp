@@ -188,7 +188,7 @@ bool MainWindow::loadTimingsFile(QString fileName) {
         QByteArray byteArray = file.readAll();
         result = !byteArray.isEmpty();
         QDataStream stream(byteArray);
-        stream.setVersion(QDataStream::Qt_5_6);
+        stream.setVersion(QDataStream::Qt_5_4);
         int shift;
         TimingRecord timings[CDI_TIMING_RECORD_SLOTS];
         stream >> shift
@@ -220,7 +220,7 @@ bool MainWindow::saveTimingsFile(QString fileName) {
     if (file.open(QIODevice::WriteOnly)) {
         QByteArray byteArray;
         QDataStream stream(&byteArray, QIODevice::WriteOnly);
-        stream.setVersion(QDataStream::Qt_5_6);
+        stream.setVersion(QDataStream::Qt_5_4);
         int shift = ui->spinBoxShiftSet->value();
         TimingRecord timings[CDI_TIMING_RECORD_SLOTS];
         for (int i = 0; i < CDI_TIMING_RECORD_SLOTS; i++) {
