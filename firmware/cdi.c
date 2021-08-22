@@ -50,7 +50,7 @@ static uint8_t getValue(uint32_t recordRpm) {
             return (globalShift - records[i].timing);
         }
     }
-    return 0;
+    return (globalShift - CDI_TIMING_OVER_HIGH);
 }
 
 static void sparkOut(CdiSpark spark, bool on) {

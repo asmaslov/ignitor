@@ -17,7 +17,7 @@
 
 #define CDI_TIMING_UNDER_LOW  5
 #define CDI_TIMING_INCR       3
-#define CDI_TIMING_OVER_HIGH  32
+#define CDI_TIMING_OVER_HIGH  30
 
 #define CDI_SHIFT_DEFAULT  80
 
