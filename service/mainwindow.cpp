@@ -337,7 +337,7 @@ void MainWindow::portRead() {
                         mutexRequest.lock();
                         recordIdx++;
                         if (CDI_TIMING_RECORD_SLOTS == recordIdx) {
-                            ui->statusbar->showMessage("Timings loaded");
+                            ui->statusbar->showMessage("Timings loaded from device");
                             lockTimings(false);
                             if (ui->checkBoxShiftAutoset->isChecked()) {
                                 cmd = REMOTE_PACKET_CMD_SET_SHIFT;
@@ -505,6 +505,7 @@ void MainWindow::on_actionOpen_triggered()
         {
             timingsFileName = fileName;
             setWindowTitle(QCoreApplication::applicationName() + " - " + timingsFileName);
+            QMessageBox::information(this, tr("Timings file"), tr("Timings loaded"));
         }
     }
 }
@@ -529,6 +530,7 @@ void MainWindow::on_actionSave_triggered()
             {
                 timingsFileName = fileName;
                 setWindowTitle(QCoreApplication::applicationName() + " - " + timingsFileName);
+                QMessageBox::information(this, tr("Timings file"), tr("Timings saved"));
             }
         }
     }
@@ -553,6 +555,7 @@ void MainWindow::on_actionSaveAs_triggered()
         {
             timingsFileName = fileName;
             setWindowTitle(QCoreApplication::applicationName() + " - " + timingsFileName);
+            QMessageBox::information(this, tr("Timings file"), tr("Timings saved"));
         }
     }
 }

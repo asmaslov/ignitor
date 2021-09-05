@@ -34,7 +34,7 @@ static uint16_t ticks[CDI_TICKS];
 static uint8_t rps;
 static volatile CdiSpark spark;
 static volatile uint32_t waitCycles, cycleIndex;
-static volatile bool captured, busy;
+static volatile bool captured;
 
 /****************************************************************************
  * Public types/enumerations/variables                                      *
@@ -43,6 +43,14 @@ static volatile bool captured, busy;
 /****************************************************************************
  * Private functions                                                        *
  ****************************************************************************/
+
+static void calcRps(void) {
+    uint32_t tickSum = 0;
+    for (uint8_t i = 0; i < CDI_TICKS; i++) {
+        tickSum += ticks[i];
+    }
+    rps = CDI_FREQUENCY_HZ / tickSum;
+}
 
 static uint8_t getValue(uint32_t recordRpm) {
     for (uint8_t i = 0; i < CDI_TIMING_RECORD_SLOTS - 1; i++) {
@@ -53,26 +61,25 @@ static uint8_t getValue(uint32_t recordRpm) {
     return (globalShift - CDI_TIMING_OVER_HIGH);
 }
 
-static void sparkOut(CdiSpark spark, bool on) {
+static void sparkCharge(CdiSpark spark) {
     if (CDI_SPARK_FRONT == spark) {
-        if (on) {
-            PORTC |= (1 << PC2);
-        } else {
-            PORTC &= ~(1 << PC2);
-        }
+        PORTC &= ~(1 << PC2);
     } else if (CDI_SPARK_BACK == spark) {
-        if (on) {
-            PORTC |= (1 << PC3);
-        } else {
-            PORTC &= ~(1 << PC3);
-        }
+        PORTC &= ~(1 << PC3);
+    }
+}
+
+static void sparkOut(CdiSpark spark) {
+    if (CDI_SPARK_FRONT == spark) {
+        PORTC |= (1 << PC2);
+    } else if (CDI_SPARK_BACK == spark) {
+        PORTC |= (1 << PC3);
     }
 }
 
 static void ignite(TimerEvent event) {
     timer_stop(&timer0);
-    sparkOut(spark, true);
-    busy = false;
+    sparkOut(spark);
 }
 
 static void cycle(TimerEvent event) {
@@ -84,37 +91,45 @@ static void cycle(TimerEvent event) {
 static void ready(uint16_t result) {
     ticks[tickIndex] = result;
     if (captured) {
-        if ((tickIndex == indexes[1]) || (tickIndex == indexes[3])) {
-            sparkOut(spark, false);
-            if (!busy) {
-                busy = true;
-                uint32_t tickSum = 0;
-                for (uint8_t i = 0; i < CDI_TICKS; i++) {
-                    tickSum += ticks[i];
+        if (tickIndex == indexes[1]) {
+            sparkCharge(CDI_SPARK_BACK);
+        } else if (tickIndex == indexes[2]) {
+            sparkCharge(CDI_SPARK_FRONT);
+            spark = CDI_SPARK_BACK;
+            calcRps();
+            if (rps < CDI_SENSIBLE_RPS_MIN) {
+                waitCycles = CDI_DELAY_FREQUENCY_HZ * getValue(rps) /
+                        (rps * CDI_SPARKS * CDI_VALUE_MAX);
+                if (timer_configSimple(&timer0, TIMER_0,
+                                       CDI_DELAY_FREQUENCY_HZ,
+                                       cycle, TIMER_OUTPUT_NONE)) {
+                    cycleIndex = 0;
+                    timer_run(&timer0, 0);
                 }
-                rps = CDI_FREQUENCY_HZ / tickSum;
-                uint8_t value = getValue(rps);
-                spark = (tickIndex == indexes[3]) ?
-                        CDI_SPARK_FRONT : CDI_SPARK_BACK;
-                if (value != 0) {
-                    if (rps < CDI_SENSIBLE_RPS_MIN) {
-                        waitCycles = CDI_DELAY_FREQUENCY_HZ * value /
-                                (rps * CDI_SPARKS * CDI_VALUE_MAX);
-                        if (timer_configSimple(&timer0, TIMER_0,
-                                               CDI_DELAY_FREQUENCY_HZ,
-                                               cycle, TIMER_OUTPUT_NONE)) {
-                            cycleIndex = 0;
-                            timer_run(&timer0, 0);
-                        }
-                    } else {
-                        uint32_t freq = rps * CDI_SPARKS * CDI_VALUE_MAX / value;
-                        if (timer_configSimple(&timer0, TIMER_0, freq,
-                                               ignite, TIMER_OUTPUT_NONE)) {
-                            timer_run(&timer0, 0);
-                        }
-                    }
-                } else {
-                    ignite(TIMER_EVENT_OVERFLOW);
+            } else {
+                uint32_t freq = rps * CDI_SPARKS * CDI_VALUE_MAX / getValue(rps);
+                if (timer_configSimple(&timer0, TIMER_0, freq,
+                                       ignite, TIMER_OUTPUT_NONE)) {
+                    timer_run(&timer0, 0);
+                }
+            }
+        } else if (tickIndex == indexes[3]) {
+            spark = CDI_SPARK_FRONT;
+            calcRps();
+            if (rps < CDI_SENSIBLE_RPS_MIN) {
+                waitCycles = CDI_DELAY_FREQUENCY_HZ * getValue(rps) /
+                        (rps * CDI_SPARKS * CDI_VALUE_MAX);
+                if (timer_configSimple(&timer0, TIMER_0,
+                                       CDI_DELAY_FREQUENCY_HZ,
+                                       cycle, TIMER_OUTPUT_NONE)) {
+                    cycleIndex = 0;
+                    timer_run(&timer0, 0);
+                }
+            } else {
+                uint32_t freq = rps * CDI_SPARKS * CDI_VALUE_MAX / getValue(rps);
+                if (timer_configSimple(&timer0, TIMER_0, freq,
+                                       ignite, TIMER_OUTPUT_NONE)) {
+                    timer_run(&timer0, 0);
                 }
             }
         }
@@ -146,8 +161,8 @@ static void over(TimerEvent event) {
     if (TIMER_EVENT_OVERFLOW == event) {
         senseIndex = 0;
         captured = false;
-        sparkOut(CDI_SPARK_FRONT, false);
-        sparkOut(CDI_SPARK_BACK, false);
+        sparkCharge(CDI_SPARK_FRONT);
+        sparkCharge(CDI_SPARK_BACK);
     }
 }
 

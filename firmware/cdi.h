@@ -19,7 +19,7 @@
 #define CDI_TIMING_INCR       3
 #define CDI_TIMING_OVER_HIGH  30
 
-#define CDI_SHIFT_DEFAULT  80
+#define CDI_SHIFT_DEFAULT  72
 
 #define CDI_TICKS  4
 #define CDI_SPARKS  2
