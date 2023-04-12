@@ -9,6 +9,11 @@ TEMPLATE = app
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
+win32 {
+    INCLUDEPATH += "C:/Program Files (x86)/L-Card"
+    LIBS += -L"C:/Program Files (x86)/L-Card/ltr/lib/mingw"
+}
+
 INCLUDEPATH += $$PWD/../firmware
 
 SOURCES += \

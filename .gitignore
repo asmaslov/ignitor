@@ -1,11 +1,3 @@
-.settings
 *.s#*
-*.o
-*.elf
-*.bin
-*.hex
-*.map
-ui_*.py
-*_rc.py
-*.pro.*
 build-*
+*.pro.*

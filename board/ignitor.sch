@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="7.2.0">
+<eagle version="7.6.0">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="2" name="Route2" color="1" fill="3" visible="no" active="no"/>
@@ -20476,7 +20476,7 @@ Rotor period when starting T ≈ 160 ms</text>
 <junction x="66.04" y="40.64"/>
 </segment>
 </net>
-<net name="COIL_BACK" class="0">
+<net name="COIL_REAR" class="0">
 <segment>
 <pinref part="SV1" gate="1" pin="2"/>
 <wire x1="12.7" y1="142.24" x2="17.78" y2="142.24" width="0.1524" layer="91"/>
@@ -20545,18 +20545,6 @@ Rotor period when starting T ≈ 160 ms</text>
 </segment>
 </net>
 <net name="!IGN_BACK" class="0">
-<segment>
-<pinref part="T2" gate="G$1" pin="B"/>
-<wire x1="96.52" y1="25.4" x2="109.22" y2="25.4" width="0.1524" layer="91"/>
-<pinref part="IC3" gate="G$1" pin="9"/>
-<wire x1="109.22" y1="25.4" x2="175.26" y2="25.4" width="0.1524" layer="91"/>
-<wire x1="175.26" y1="25.4" x2="175.26" y2="71.12" width="0.1524" layer="91"/>
-<wire x1="175.26" y1="71.12" x2="236.22" y2="71.12" width="0.1524" layer="91"/>
-<pinref part="R22" gate="G$1" pin="2"/>
-<wire x1="109.22" y1="27.94" x2="109.22" y2="25.4" width="0.1524" layer="91"/>
-<junction x="109.22" y="25.4"/>
-<label x="223.52" y="71.628" size="1.27" layer="95"/>
-</segment>
 <segment>
 <pinref part="U1" gate="A" pin="PC3"/>
 <wire x1="246.38" y1="195.58" x2="269.24" y2="195.58" width="0.1524" layer="91"/>
@@ -20832,6 +20820,20 @@ Rotor period when starting T ≈ 160 ms</text>
 <wire x1="246.38" y1="172.72" x2="264.16" y2="172.72" width="0.1524" layer="91"/>
 <wire x1="264.16" y1="172.72" x2="264.16" y2="165.1" width="0.1524" layer="91"/>
 <pinref part="LED1" gate="G$1" pin="C"/>
+</segment>
+</net>
+<net name="!IGN_REAR" class="0">
+<segment>
+<pinref part="T2" gate="G$1" pin="B"/>
+<wire x1="96.52" y1="25.4" x2="109.22" y2="25.4" width="0.1524" layer="91"/>
+<pinref part="IC3" gate="G$1" pin="9"/>
+<wire x1="109.22" y1="25.4" x2="175.26" y2="25.4" width="0.1524" layer="91"/>
+<wire x1="175.26" y1="25.4" x2="175.26" y2="71.12" width="0.1524" layer="91"/>
+<wire x1="175.26" y1="71.12" x2="236.22" y2="71.12" width="0.1524" layer="91"/>
+<pinref part="R22" gate="G$1" pin="2"/>
+<wire x1="109.22" y1="27.94" x2="109.22" y2="25.4" width="0.1524" layer="91"/>
+<junction x="109.22" y="25.4"/>
+<label x="223.52" y="71.628" size="1.27" layer="95"/>
 </segment>
 </net>
 </nets>

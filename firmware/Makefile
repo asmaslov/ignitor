@@ -1,63 +1,101 @@
-PRJ = ignitor
+# Makefile
+#
+# targets:
+#   all:          compile release version
+#   debug:        compile debug version
+#   test:         test the connection to the MCU
+#   prog:         write compiled hex file to the MCU's flash memory
+#   fuse:         write the fuse bytes to the MCU
+#   eeprom_read:  read eeprom content
+#   eeprom_write: write eeprom content
+#   disasm:       disassemble the code for debugging
+#   clean:        remove all build files
+
+TARGET = ignitor
 MCU = atmega48
-F_CPU = 8000000
+CLK = 8000000
 
 RM = rm -rf
 MKDIR = mkdir -p
-SRC_DIR = $(PWD)
-BUILD_DIR = $(PWD)/../build-${PRJ}-firmware
-
-SRCS_C = $(shell find ${SRC_DIR} -type f -name '*.c')
-INCS_C = $(shell find ${SRC_DIR} -type f -name '*.h')
-INCS_DIRS = $(addprefix -I, $(dir ${INCS_C}))
-OBJS_DIRS = $(subst ${SRC_DIR}, ${BUILD_DIR}, $(dir ${SRCS_C}))
-OBJS = $(subst ${SRC_DIR}, ${BUILD_DIR}, $(patsubst %.c, %.o, ${SRCS_C}))
 
 CC = avr-gcc
 OBJCOPY = avr-objcopy
-SIZE = avr-size
+OBJDUMP = avr-objdump
+SIZE = avr-size --format=avr --mcu=$(MCU)
 
-DEFINES = -DF_CPU=${F_CPU} -DTIMER_SIMPLE_0= -DTIMER_SIMPLE_2= -DTIMER_METER_1=
-OPTIONS = -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -funsigned-char -funsigned-bitfields
-CFLAGS = -mmcu=${MCU} ${DEFINES} ${INCS_DIRS} -std=gnu99 -Wall -g2 -gstabs -Os ${OPTIONS}
-LDFLAGS = -Wl,--gc-sections -Wl,-Map,${BUILD_DIR}/${PRJ}.map
+DUDE_PRG = usbasp
+DUDE_MCU = m48
+AVRDUDE = avrdude -c $(DUDE_PRG) -p $(DUDE_MCU)
 
-AVRDUDE = avrdude
-AVRDUDE_PROGRAMMER = usbasp
-AVRDUDE_FLAGS = -p$(MCU) -c$(AVRDUDE_PROGRAMMER) -v
-AVRDUDE_WRITE_FLASH = -U flash:w:${BUILD_DIR}/${PRJ}.hex
-AVRDUDE_WRITE_EEPROM = -U eeprom:w:${BUILD_DIR}/${PRJ}.eep
+# Lookup http://www.engbedded.com/fusecalc/ for fuse values
+LFU = 0xE2
+HFU = 0xDF
+EFU = 0x01
 
-$(foreach S, $(SRCS_C), \
-	$(foreach O, $(filter %$(basename $(notdir $S)).o, $(OBJS)), \
-		$(eval $O: $S ${INCS_C}) \
-	) \
-)
+$(info $(TARGET) firmware)
 
-%.o:
-	$(if $(wildcard $(@D)), , ${MKDIR} $(@D) &&) ${CC} ${CFLAGS} -c $< -o $@
+PWD := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 
-${BUILD_DIR}/${PRJ}.elf: ${OBJS}
-	${CC} -mmcu=${MCU} ${LDFLAGS} -o $@ ${OBJS}
+SUBDIR = $(PWD)/drv
+BUILD = $(PWD)/../build-$(TARGET)-firmware
 
-${BUILD_DIR}/${PRJ}.hex: ${BUILD_DIR}/${PRJ}.elf
-	${OBJCOPY} -R .eeprom -R .fuse -R .lock -R .signature -O ihex $< $@
+HEX = $(BUILD)/$(TARGET).hex
+ELF = $(BUILD)/$(TARGET).elf
+MAP = $(BUILD)/$(TARGET).map
+EEP = $(BUILD)/$(TARGET).eep
 
-${BUILD_DIR}/${PRJ}.eep: ${BUILD_DIR}/${PRJ}.elf
-	$(OBJCOPY) -j .eeprom --set-section-flags=.eeprom="alloc,load" \
-	--change-section-lma .eeprom=0 --no-change-warnings -O ihex $< $@
+INCS = $(wildcard $(PWD)/*.h $(foreach fd, $(SUBDIR), $(fd)/*.h))
+SRCS = $(wildcard $(PWD)/*.c $(foreach fd, $(SUBDIR), $(fd)/*.c))
+OBJS = $(patsubst $(PWD)/%.c, $(BUILD)/%.o, $(SRCS))
 
-all: ${BUILD_DIR}/${PRJ}.hex ${BUILD_DIR}/${PRJ}.eep
-	${SIZE} --format=avr --mcu=${MCU} ${BUILD_DIR}/${PRJ}.elf
+INCLUDES = -I$(PWD) $(addprefix -I, $(SUBDIR))
+DEFINES = -DF_CPU=$(CLK) -DTIMER_SIMPLE_0= -DTIMER_SIMPLE_2= -DTIMER_METER_1=
+OPTIONS = -fpack-struct -fshort-enums -ffunction-sections -fdata-sections -funsigned-char -funsigned-bitfields -fomit-frame-pointer
 
-program: ${BUILD_DIR}/${PRJ}.hex ${BUILD_DIR}/${PRJ}.eep
-	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH) $(AVRDUDE_WRITE_EEPROM)
+LDFLAGS = -Wl,--gc-sections -Wl,-Map,$(MAP)
+CFLAGS = -Wall -mmcu=$(MCU) -std=gnu99 $(DEFINES) $(INCLUDES) $(OPTIONS)
+
+.PHONY: all
+
+all: CFLAGS += -Os
+all:  $(HEX) $(EEP)
+
+debug: CFLAGS += -g -O0
+debug: $(HEX) $(EEP)
+
+$(BUILD)/%.o: $(PWD)/%.c $(INCS)
+	$(if $(wildcard $(@D)), , ${MKDIR} $(@D))
+	$(CC) $< -c $(CFLAGS) -o $@
+
+$(ELF): $(OBJS)
+	$(CC) $(OBJS) $(CFLAGS) $(LDFLAGS) -o $@
+
+$(HEX): $(ELF)
+	rm -f $(HEX)
+	$(OBJCOPY) -j .text -j .data -R .eeprom -R .fuse -R .lock -R .signature -O ihex $(ELF) $(HEX)
+	$(SIZE) $(ELF)
+
+$(EEP): $(ELF)
+	$(OBJCOPY) -j .eeprom --set-section-flags=.eeprom=alloc,load --change-section-lma .eeprom=0 --no-change-warnings -O ihex $< $@
+
+test:
+	$(AVRDUDE) -v
+
+prog: $(HEX)
+	$(AVRDUDE) -U flash:w:$(HEX)
+
+fuse:
+	$(AVRDUDE) -U lfuse:w:$(LFU):m -U hfuse:w:$(HFU):m -U efuse:w:$(EFU):m
+
+eeprom_read:
+	$(AVRDUDE) -U eeprom:r:$(EEP):i
+
+eeprom_write: $(EEP)
+	$(AVRDUDE) -U eeprom:w:$(EEP)
+
+disasm: $(ELF)
+	$(OBJDUMP) -d $(ELF)
 
 clean:
-	${RM}	${OBJS}
-	${RM}	${OBJS_DIRS}
-	${RM}	${BUILD_DIR}/${PRJ}.elf
-	${RM}	${BUILD_DIR}/${PRJ}.map
-	${RM}	${BUILD_DIR}/${PRJ}.hex
-	${RM}	${BUILD_DIR}/${PRJ}.eep
-	${RM}	${BUILD_DIR}
+	$(RM) $(HEX) $(ELF) $(EEP) $(MAP) $(OBJS)
+	$(RM) $(BUILD)
